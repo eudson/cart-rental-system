@@ -33,11 +33,11 @@
 
 **Goal:** Monorepo scaffold, database schema, local dev environment running.
 **Status:** In progress
-**Completed:** Monorepo scaffold
+**Completed:** Monorepo scaffold, Shared package bootstrap
 
 ### Tasks
 - [x] Monorepo scaffold (pnpm workspaces, folder structure per PRD)
-- [ ] Shared package bootstrap (enums, types, index exports)
+- [x] Shared package bootstrap (enums, types, index exports)
 - [ ] Prisma schema (full data model per PRD section 5)
 - [ ] Initial Prisma migration (`0001_init`)
 - [ ] Docker dev environment (Postgres container running locally)
@@ -51,6 +51,7 @@
 - 2026-04-09: Created the initial pnpm workspace manifests and PRD-aligned directory scaffold for `apps/api`, `apps/web`, `packages/shared`, and `docker`.
 - 2026-04-09: Kept the scaffold intentionally minimal to avoid pulling Phase 1 follow-on tasks forward; Nest bootstrap, Prisma schema, Docker Compose files, and shared exports remain separate tasks.
 - 2026-04-09: Initialized the local Git repository, added a stack-specific `.gitignore`, connected the `origin` remote to GitHub, and pushed the initial `main` branch.
+- 2026-04-09: Added the shared package enums, grouped API-safe entity contract types, and root exports. `passwordHash` fields were intentionally excluded from shared contracts because the package is consumed by both the API and web apps.
 
 ---
 
@@ -287,14 +288,14 @@
 
 | Phase | Status | Completed Tasks |
 |-------|--------|----------------|
-| Phase 1 — Foundation | Not started | 0 / 8 |
+| Phase 1 — Foundation | In progress | 2 / 8 |
 | Phase 2 — Auth & Multi-Tenancy | Not started | 0 / 13 |
 | Phase 3 — Core Inventory | Not started | 0 / 24 |
 | Phase 4 — Rentals | Not started | 0 / 18 |
 | Phase 5 — Payments | Not started | 0 / 5 |
 | Phase 6 — Frontend | Not started | 0 / 37 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **0 / 112** |
+| **Total** | | **2 / 112** |
 
 ---
 
