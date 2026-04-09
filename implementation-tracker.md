@@ -53,6 +53,7 @@
 - 2026-04-09: Initialized the local Git repository, added a stack-specific `.gitignore`, connected the `origin` remote to GitHub, and pushed the initial `main` branch.
 - 2026-04-09: Added the shared package enums, grouped API-safe entity contract types, and root exports. `passwordHash` fields were intentionally excluded from shared contracts because the package is consumed by both the API and web apps.
 - 2026-04-09: Added the full Prisma schema in `apps/api/prisma/schema.prisma`, following PRD section 5 and mapping camelCase schema fields to snake_case database columns per the project engineering standards.
+- 2026-04-09: Bootstrapped the `api` workspace with Prisma CLI and `@prisma/client` plus package-local Prisma scripts to unblock schema validation and the upcoming initial migration task.
 
 ---
 
