@@ -50,6 +50,7 @@
 
 - 2026-04-09: Created the initial pnpm workspace manifests and PRD-aligned directory scaffold for `apps/api`, `apps/web`, `packages/shared`, and `docker`.
 - 2026-04-09: Kept the scaffold intentionally minimal to avoid pulling Phase 1 follow-on tasks forward; Nest bootstrap, Prisma schema, Docker Compose files, and shared exports remain separate tasks.
+- 2026-04-09: Initialized the local Git repository, added a stack-specific `.gitignore`, connected the `origin` remote to GitHub, and pushed the initial `main` branch.
 
 ---
 
