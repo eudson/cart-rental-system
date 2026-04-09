@@ -1,0 +1,239 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  super_admin
+  org_admin
+  staff
+}
+
+enum OrgStatus {
+  active
+  suspended
+  inactive
+}
+
+enum LocationStatus {
+  active
+  inactive
+}
+
+enum CartStatus {
+  available
+  rented
+  reserved
+  retired
+}
+
+enum RentalType {
+  daily
+  lease
+}
+
+enum RentalStatus {
+  pending
+  active
+  completed
+  cancelled
+}
+
+enum PaymentStatus {
+  unpaid
+  partial
+  paid
+  refunded
+}
+
+enum PaymentMethod {
+  cash
+  card
+  bank_transfer
+  other
+}
+
+model Organization {
+  id                 String      @id @default(uuid())
+  name               String
+  slug               String      @unique
+  status             OrgStatus   @default(active)
+  minLeaseMonths     Int         @default(6) @map("min_lease_months")
+  defaultDailyRate   Decimal?    @db.Decimal(10, 2) @map("default_daily_rate")
+  defaultMonthlyRate Decimal?    @db.Decimal(10, 2) @map("default_monthly_rate")
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+
+  locations Location[]
+  users     User[]
+  customers Customer[]
+  cartTypes CartType[]
+  carts     Cart[]
+  rentals   Rental[]
+
+  @@map("organizations")
+}
+
+model Location {
+  id             String         @id @default(uuid())
+  organizationId String         @map("organization_id")
+  name           String
+  address        String?
+  timezone       String         @default("UTC")
+  status         LocationStatus @default(active)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  users        User[]
+  carts        Cart[]
+  rentals      Rental[]
+
+  @@map("locations")
+}
+
+model User {
+  id              String    @id @default(uuid())
+  organizationId  String    @map("organization_id")
+  locationId      String?   @map("location_id")
+  name            String
+  email           String
+  passwordHash    String    @map("password_hash")
+  role            UserRole
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  location        Location?    @relation(fields: [locationId], references: [id])
+  rentalsCreated  Rental[]     @relation("RentalCreatedBy")
+  paymentsRecorded Payment[]   @relation("PaymentRecordedBy")
+
+  @@unique([organizationId, email])
+  @@map("users")
+}
+
+model Customer {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  name           String
+  email          String
+  phone          String?
+  idNumber       String?  @map("id_number")
+  passwordHash   String   @map("password_hash")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  rentals      Rental[]
+
+  @@unique([organizationId, email])
+  @@map("customers")
+}
+
+model CartType {
+  id              String   @id @default(uuid())
+  organizationId  String   @map("organization_id")
+  name            String
+  description     String?
+  dailyRate       Decimal  @db.Decimal(10, 2) @map("daily_rate")
+  monthlyRate     Decimal  @db.Decimal(10, 2) @map("monthly_rate")
+  seatingCapacity Int      @default(2) @map("seating_capacity")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  carts        Cart[]
+
+  @@map("cart_types")
+}
+
+model Cart {
+  id             String     @id @default(uuid())
+  organizationId String     @map("organization_id")
+  locationId     String     @map("location_id")
+  cartTypeId     String     @map("cart_type_id")
+  label          String
+  year           Int?
+  color          String?
+  notes          String?
+  status         CartStatus @default(available)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  location     Location     @relation(fields: [locationId], references: [id])
+  cartType     CartType     @relation(fields: [cartTypeId], references: [id])
+  rentals      Rental[]
+
+  @@map("carts")
+}
+
+model Rental {
+  id                  String       @id @default(uuid())
+  organizationId      String       @map("organization_id")
+  locationId          String       @map("location_id")
+  customerId          String       @map("customer_id")
+  cartId              String       @map("cart_id")
+  createdById         String       @map("created_by_id")
+  type                RentalType
+  status              RentalStatus @default(pending)
+  startDate           DateTime     @map("start_date")
+  endDate             DateTime     @map("end_date")
+  actualReturnDate    DateTime?    @map("actual_return_date")
+  dailyRateSnapshot   Decimal?     @db.Decimal(10, 2) @map("daily_rate_snapshot")
+  monthlyRateSnapshot Decimal?     @db.Decimal(10, 2) @map("monthly_rate_snapshot")
+  totalAmount         Decimal?     @db.Decimal(10, 2) @map("total_amount")
+  notes               String?
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+
+  organization  Organization  @relation(fields: [organizationId], references: [id])
+  location      Location      @relation(fields: [locationId], references: [id])
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  cart          Cart          @relation(fields: [cartId], references: [id])
+  createdBy     User          @relation("RentalCreatedBy", fields: [createdById], references: [id])
+  leaseContract LeaseContract?
+  payments      Payment[]
+
+  @@map("rentals")
+}
+
+model LeaseContract {
+  id                  String   @id @default(uuid())
+  rentalId            String   @unique @map("rental_id")
+  contractMonths      Int      @map("contract_months")
+  earlyTerminationFee Decimal? @db.Decimal(10, 2) @map("early_termination_fee")
+  signedAt            DateTime? @map("signed_at")
+  documentUrl         String?  @map("document_url")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  rental Rental @relation(fields: [rentalId], references: [id])
+
+  @@map("lease_contracts")
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  rentalId       String        @map("rental_id")
+  organizationId String        @map("organization_id")
+  recordedById   String        @map("recorded_by_id")
+  amount         Decimal       @db.Decimal(10, 2)
+  method         PaymentMethod
+  status         PaymentStatus @default(unpaid)
+  paidAt         DateTime?     @map("paid_at")
+  notes          String?
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  rental     Rental @relation(fields: [rentalId], references: [id])
+  recordedBy User   @relation("PaymentRecordedBy", fields: [recordedById], references: [id])
+
+  @@map("payments")
+}
