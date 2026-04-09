@@ -26,14 +26,15 @@
 | Date | Phase | Deviation | Reason | PRD Update Needed? |
 |------|-------|-----------|--------|-------------------|
 | 2026-04-09 | Phase 1 — Foundation | Dev Postgres host port uses `5440` instead of PRD sample port `5432` | Local machine already has other Postgres instances bound to common ports | No |
+| 2026-04-09 | Phase 1 — Foundation | Added root `.env.example` and contributor `README.md` before the Phase 7 documentation milestone | User explicitly requested earlier contributor onboarding docs and environment setup guidance | No |
 
 ---
 
 ## Phase 1 — Foundation
 
 **Goal:** Monorepo scaffold, database schema, local dev environment running.
-**Status:** In progress
-**Completed:** Monorepo scaffold, Shared package bootstrap, Prisma schema, Initial Prisma migration, Docker dev environment, NestJS app bootstrap, Prisma module + service wiring
+**Status:** Complete
+**Completed:** Monorepo scaffold, Shared package bootstrap, Prisma schema, Initial Prisma migration, Docker dev environment, NestJS app bootstrap, Prisma module + service wiring, Root workspace scripts
 
 ### Tasks
 - [x] Monorepo scaffold (pnpm workspaces, folder structure per PRD)
@@ -43,7 +44,7 @@
 - [x] Docker dev environment (Postgres container running locally)
 - [x] NestJS app bootstrap (`main.ts`, `app.module.ts`, global exception filter)
 - [x] Prisma module + service wired into NestJS
-- [ ] Root `package.json` scripts validated (`dev:api`, `dev:web`, `db:migrate`, `db:studio`)
+- [x] Root `package.json` scripts validated (`dev:api`, `dev:web`, `db:migrate`, `db:studio`)
 
 ### Notes
 > Add implementation notes, decisions, or issues here as tasks are completed.
@@ -60,6 +61,12 @@
 - 2026-04-09: Added `api` workspace build/start/test scripts plus a compiled Node test that verifies the `/v1` prefix and standardized success/error envelopes.
 - 2026-04-09: Added `PrismaModule` and `PrismaService`, imported the module into `AppModule`, and verified the provider resolves through Nest DI and can query the local dev Postgres instance.
 - 2026-04-09: Re-ran `prisma generate` after wiring the Nest Prisma service so the generated Prisma client types matched the existing schema in the current workspace state.
+- 2026-04-09: Added root workspace scripts for `dev:api`, `dev:web`, `db:migrate`, and `db:studio`.
+- 2026-04-09: Validated the root scripts directly. `dev:api` started the Nest app successfully on port `3000`, `db:migrate` completed against the local dev Postgres instance, and `db:studio` launched successfully on a custom port during validation.
+- 2026-04-09: `dev:web` is intentionally a placeholder script for Phase 1 workspace validation only; the real Vite dev server remains scoped to the Phase 6 frontend scaffold task.
+- 2026-04-09: Documented the root developer commands in `AGENTS.md` so future agents can discover and reuse the validated workspace scripts without re-deriving them from `package.json`.
+- 2026-04-09: Added a root `.env.example` and a contributor-facing `README.md` with clone, install, database, migration, and run instructions that match the current Phase 1 repository state.
+- 2026-04-09: Switched the API and Prisma scripts to load configuration from the root `.env` file directly and removed the temporary root `DATABASE_URL` fallback helper.
 
 ---
 
@@ -296,14 +303,14 @@
 
 | Phase | Status | Completed Tasks |
 |-------|--------|----------------|
-| Phase 1 — Foundation | In progress | 7 / 8 |
+| Phase 1 — Foundation | Complete | 8 / 8 |
 | Phase 2 — Auth & Multi-Tenancy | Not started | 0 / 13 |
 | Phase 3 — Core Inventory | Not started | 0 / 24 |
 | Phase 4 — Rentals | Not started | 0 / 18 |
 | Phase 5 — Payments | Not started | 0 / 5 |
 | Phase 6 — Frontend | Not started | 0 / 37 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **7 / 112** |
+| **Total** | | **8 / 112** |
 
 ---
 

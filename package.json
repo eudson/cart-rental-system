@@ -1,4 +1,10 @@
 {
   "name": "golf-cart-rental",
-  "private": true
+  "private": true,
+  "scripts": {
+    "db:migrate": "pnpm --filter api prisma:migrate",
+    "db:studio": "pnpm --filter api prisma:studio",
+    "dev:api": "pnpm --filter api start",
+    "dev:web": "pnpm --filter web dev"
+  }
 }

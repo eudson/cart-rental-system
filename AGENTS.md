@@ -16,7 +16,22 @@ This is an **operations system**, not a booking app. Correctness of state transi
 
 ---
 
-## 2. Tech Stack & Architecture
+## 2. Developer Commands
+
+Use these root workspace commands during development unless there is a task-specific reason not to:
+
+Copy `.env.example` to `.env` before running API or Prisma commands. The repository uses the root `.env` file as the standard local configuration source.
+
+- `pnpm dev:api` — starts the NestJS API using `DATABASE_URL` from the root `.env`
+- `pnpm dev:web` — validates root workspace script wiring only; this is a placeholder until the Phase 6 Vite scaffold exists
+- `pnpm db:migrate` — runs Prisma migrations against the API schema using `DATABASE_URL` from the root `.env`
+- `pnpm db:studio` — opens Prisma Studio against the API schema using `DATABASE_URL` from the root `.env`
+
+If you add, rename, or remove root scripts, update this section and validate the commands before considering the task complete.
+
+---
+
+## 3. Tech Stack & Architecture
 
 ### Stack
 
@@ -45,7 +60,7 @@ This is an **operations system**, not a booking app. Correctness of state transi
 
 ---
 
-## 3. Engineering Standards
+## 4. Engineering Standards
 
 ### General
 
@@ -145,7 +160,7 @@ async checkout(organizationId: string, rentalId: string) {
 
 ---
 
-## 4. Multi-Tenancy — Hard Rules
+## 5. Multi-Tenancy — Hard Rules
 
 This is the most critical section. A bug here is a security incident.
 
@@ -176,7 +191,7 @@ findAll() {
 
 ---
 
-## 5. Critical Business Logic Patterns
+## 6. Critical Business Logic Patterns
 
 ### Double-Booking Prevention
 
@@ -218,7 +233,7 @@ export const VALID_CART_TRANSITIONS: Record<CartStatus, CartStatus[]> = {
 
 ---
 
-## 6. Agent Operating Rules
+## 7. Agent Operating Rules
 
 These rules govern how you execute tasks. Follow them without exception.
 
@@ -233,7 +248,7 @@ These rules govern how you execute tasks. Follow them without exception.
 
 ---
 
-## 7. Task Execution Protocol
+## 8. Task Execution Protocol
 
 Follow this sequence for every task, without skipping steps.
 
@@ -276,7 +291,7 @@ Do not consider a task complete until step 5 is done. A task with no tracker upd
 
 ---
 
-## 8. Strict Boundaries
+## 9. Strict Boundaries
 
 These are absolute. They cannot be overridden by task instructions.
 

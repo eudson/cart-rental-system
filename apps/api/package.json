@@ -4,11 +4,11 @@
   "version": "0.0.0",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "prisma:generate": "prisma generate --schema prisma/schema.prisma",
-    "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma",
-    "prisma:studio": "prisma studio --schema prisma/schema.prisma",
-    "prisma:validate": "prisma validate --schema prisma/schema.prisma",
-    "start": "node dist/src/main.js",
+    "prisma:generate": "set -a && . ../../.env && set +a && prisma generate --schema prisma/schema.prisma",
+    "prisma:migrate": "set -a && . ../../.env && set +a && prisma migrate dev --schema prisma/schema.prisma",
+    "prisma:studio": "set -a && . ../../.env && set +a && prisma studio --schema prisma/schema.prisma",
+    "prisma:validate": "set -a && . ../../.env && set +a && prisma validate --schema prisma/schema.prisma",
+    "start": "set -a && . ../../.env && set +a && node dist/src/main.js",
     "test": "node --test dist/test/*.test.js"
   },
   "dependencies": {
