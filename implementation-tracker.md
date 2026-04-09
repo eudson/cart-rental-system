@@ -2,7 +2,7 @@
 
 **Project:** Golf Cart Rental Management System
 **PRD Version:** 1.0
-**Last Updated:** 2026-04-09
+**Last Updated:** 2026-04-10
 **Updated By:** Codex
 
 ---
@@ -27,6 +27,7 @@
 |------|-------|-----------|--------|-------------------|
 | 2026-04-09 | Phase 1 — Foundation | Dev Postgres host port uses `5440` instead of PRD sample port `5432` | Local machine already has other Postgres instances bound to common ports | No |
 | 2026-04-09 | Phase 1 — Foundation | Added root `.env.example` and contributor `README.md` before the Phase 7 documentation milestone | User explicitly requested earlier contributor onboarding docs and environment setup guidance | No |
+| 2026-04-10 | Phase 2 — Auth & Multi-Tenancy | `POST /auth/login` and `POST /auth/customer/login` accept `organizationSlug` in the request body | Schema `@@unique([organizationId, email])` means email is not globally unique; tenant must be identified at login time. PRD rule "never `organizationId` in body" applies to protected routes only. | No |
 
 ---
 
@@ -73,26 +74,31 @@
 ## Phase 2 — Auth & Multi-Tenancy
 
 **Goal:** Secure, role-based auth working for staff and customers. Org scoping enforced on all requests.
-**Status:** Not started
-**Completed:** —
+**Status:** Complete
+**Completed:** Staff/admin JWT auth (login, refresh, logout), Customer JWT auth (login), JWT strategies, JwtAuthGuard, CustomerJwtGuard, RolesGuard, OrgGuard, @Roles() decorator, @CurrentUser() decorator, guard registration per-module, cross-org mismatch rejection
 
 ### Tasks
-- [ ] Staff/admin JWT auth — login endpoint (`POST /auth/login`)
-- [ ] Staff/admin JWT auth — refresh endpoint (`POST /auth/refresh`)
-- [ ] Staff/admin JWT auth — logout endpoint (`POST /auth/logout`)
-- [ ] Customer JWT auth — login endpoint (`POST /auth/customer/login`)
-- [ ] JWT strategy — staff claims: `{ userId, organizationId, role }`
-- [ ] JWT strategy — customer claims: `{ customerId, organizationId, role: 'customer' }`
-- [ ] `JwtAuthGuard` — validates token on protected routes
-- [ ] `RolesGuard` — validates role from token claims
-- [ ] `OrgGuard` — injects `organizationId` from token, prevents cross-org access
-- [ ] `@Roles()` decorator wired to `RolesGuard`
-- [ ] `@CurrentUser()` decorator to extract user from request
-- [ ] All guards registered globally or per-module as agreed
-- [ ] Cross-org access rejection validated (`ORG_MISMATCH` → 403)
+- [x] Staff/admin JWT auth — login endpoint (`POST /auth/login`)
+- [x] Staff/admin JWT auth — refresh endpoint (`POST /auth/refresh`)
+- [x] Staff/admin JWT auth — logout endpoint (`POST /auth/logout`)
+- [x] Customer JWT auth — login endpoint (`POST /auth/customer/login`)
+- [x] JWT strategy — staff claims: `{ userId, organizationId, role }`
+- [x] JWT strategy — customer claims: `{ customerId, organizationId, role: 'customer' }`
+- [x] `JwtAuthGuard` — validates token on protected routes
+- [x] `RolesGuard` — validates role from token claims
+- [x] `OrgGuard` — injects `organizationId` from token, prevents cross-org access
+- [x] `@Roles()` decorator wired to `RolesGuard`
+- [x] `@CurrentUser()` decorator to extract user from request
+- [x] All guards registered globally or per-module as agreed
+- [x] Cross-org access rejection validated (`ORG_MISMATCH` → 403)
 
 ### Notes
-> Add implementation notes, decisions, or issues here as tasks are completed.
+- 2026-04-10: `POST /auth/login` (and customer/login) requires `organizationSlug` in the request body to identify the tenant, since `@@unique([organizationId, email])` means the same email can exist in multiple orgs. This is a pre-auth endpoint so the PRD rule of "never `organizationId` in the request body" applies only to protected routes.
+- 2026-04-10: Added `CustomerJwtGuard` (extends `AuthGuard('customer-jwt')`) in addition to the tracked `JwtAuthGuard`. PRD section 8 explicitly calls for separate customer guards; this is not a deviation.
+- 2026-04-10: Added `refreshTokenHash String?` to `User` and `Customer` Prisma models (migration `20260409221052_add_refresh_token_hash`). Refresh tokens are stored as bcrypt hashes so logout can invalidate them without a separate token table.
+- 2026-04-10: `pnpm.onlyBuiltDependencies` added to root `package.json` to allow `bcrypt` and Prisma to run native build scripts during `pnpm install`.
+- 2026-04-10: Added `ValidationPipe({ whitelist: true })` globally in `app.setup.ts` to enforce class-validator rules on all DTOs.
+- 2026-04-10: All 14 integration tests pass (11 new auth tests + 3 existing Phase 1 tests).
 
 ---
 
@@ -304,13 +310,13 @@
 | Phase | Status | Completed Tasks |
 |-------|--------|----------------|
 | Phase 1 — Foundation | Complete | 8 / 8 |
-| Phase 2 — Auth & Multi-Tenancy | Not started | 0 / 13 |
+| Phase 2 — Auth & Multi-Tenancy | Complete | 13 / 13 |
 | Phase 3 — Core Inventory | Not started | 0 / 24 |
 | Phase 4 — Rentals | Not started | 0 / 18 |
 | Phase 5 — Payments | Not started | 0 / 5 |
 | Phase 6 — Frontend | Not started | 0 / 37 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **8 / 112** |
+| **Total** | | **21 / 112** |
 
 ---
 
