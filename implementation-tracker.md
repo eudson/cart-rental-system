@@ -33,7 +33,7 @@
 
 **Goal:** Monorepo scaffold, database schema, local dev environment running.
 **Status:** In progress
-**Completed:** Monorepo scaffold, Shared package bootstrap, Prisma schema, Initial Prisma migration, Docker dev environment
+**Completed:** Monorepo scaffold, Shared package bootstrap, Prisma schema, Initial Prisma migration, Docker dev environment, NestJS app bootstrap
 
 ### Tasks
 - [x] Monorepo scaffold (pnpm workspaces, folder structure per PRD)
@@ -41,7 +41,7 @@
 - [x] Prisma schema (full data model per PRD section 5)
 - [x] Initial Prisma migration (`0001_init`)
 - [x] Docker dev environment (Postgres container running locally)
-- [ ] NestJS app bootstrap (`main.ts`, `app.module.ts`, global exception filter)
+- [x] NestJS app bootstrap (`main.ts`, `app.module.ts`, global exception filter)
 - [ ] Prisma module + service wired into NestJS
 - [ ] Root `package.json` scripts validated (`dev:api`, `dev:web`, `db:migrate`, `db:studio`)
 
@@ -56,6 +56,8 @@
 - 2026-04-09: Bootstrapped the `api` workspace with Prisma CLI and `@prisma/client` plus package-local Prisma scripts to unblock schema validation and the upcoming initial migration task.
 - 2026-04-09: Added `docker/docker-compose.dev.yml` for local Postgres development and bound the host to port `5440` to avoid collisions with other local database instances.
 - 2026-04-09: Started the dev Postgres container and generated the initial Prisma migration via `prisma migrate dev --name 0001_init`; Prisma created `apps/api/prisma/migrations/20260409204617_0001_init/migration.sql` and applied it successfully.
+- 2026-04-09: Added the initial NestJS bootstrap in `apps/api/src` with `main.ts`, `app.module.ts`, a global exception filter, and a global response-envelope interceptor so API responses follow the PRD envelope conventions from the start.
+- 2026-04-09: Added `api` workspace build/start/test scripts plus a compiled Node test that verifies the `/v1` prefix and standardized success/error envelopes.
 
 ---
 
@@ -292,14 +294,14 @@
 
 | Phase | Status | Completed Tasks |
 |-------|--------|----------------|
-| Phase 1 — Foundation | In progress | 5 / 8 |
+| Phase 1 — Foundation | In progress | 6 / 8 |
 | Phase 2 — Auth & Multi-Tenancy | Not started | 0 / 13 |
 | Phase 3 — Core Inventory | Not started | 0 / 24 |
 | Phase 4 — Rentals | Not started | 0 / 18 |
 | Phase 5 — Payments | Not started | 0 / 5 |
 | Phase 6 — Frontend | Not started | 0 / 37 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **5 / 112** |
+| **Total** | | **6 / 112** |
 
 ---
 
