@@ -25,7 +25,7 @@
 
 | Date | Phase | Deviation | Reason | PRD Update Needed? |
 |------|-------|-----------|--------|-------------------|
-| — | — | — | — | — |
+| 2026-04-09 | Phase 1 — Foundation | Dev Postgres host port uses `5440` instead of PRD sample port `5432` | Local machine already has other Postgres instances bound to common ports | No |
 
 ---
 
@@ -33,14 +33,14 @@
 
 **Goal:** Monorepo scaffold, database schema, local dev environment running.
 **Status:** In progress
-**Completed:** Monorepo scaffold, Shared package bootstrap, Prisma schema
+**Completed:** Monorepo scaffold, Shared package bootstrap, Prisma schema, Initial Prisma migration, Docker dev environment
 
 ### Tasks
 - [x] Monorepo scaffold (pnpm workspaces, folder structure per PRD)
 - [x] Shared package bootstrap (enums, types, index exports)
 - [x] Prisma schema (full data model per PRD section 5)
-- [ ] Initial Prisma migration (`0001_init`)
-- [ ] Docker dev environment (Postgres container running locally)
+- [x] Initial Prisma migration (`0001_init`)
+- [x] Docker dev environment (Postgres container running locally)
 - [ ] NestJS app bootstrap (`main.ts`, `app.module.ts`, global exception filter)
 - [ ] Prisma module + service wired into NestJS
 - [ ] Root `package.json` scripts validated (`dev:api`, `dev:web`, `db:migrate`, `db:studio`)
@@ -54,6 +54,8 @@
 - 2026-04-09: Added the shared package enums, grouped API-safe entity contract types, and root exports. `passwordHash` fields were intentionally excluded from shared contracts because the package is consumed by both the API and web apps.
 - 2026-04-09: Added the full Prisma schema in `apps/api/prisma/schema.prisma`, following PRD section 5 and mapping camelCase schema fields to snake_case database columns per the project engineering standards.
 - 2026-04-09: Bootstrapped the `api` workspace with Prisma CLI and `@prisma/client` plus package-local Prisma scripts to unblock schema validation and the upcoming initial migration task.
+- 2026-04-09: Added `docker/docker-compose.dev.yml` for local Postgres development and bound the host to port `5440` to avoid collisions with other local database instances.
+- 2026-04-09: Started the dev Postgres container and generated the initial Prisma migration via `prisma migrate dev --name 0001_init`; Prisma created `apps/api/prisma/migrations/20260409204617_0001_init/migration.sql` and applied it successfully.
 
 ---
 
@@ -290,14 +292,14 @@
 
 | Phase | Status | Completed Tasks |
 |-------|--------|----------------|
-| Phase 1 — Foundation | In progress | 3 / 8 |
+| Phase 1 — Foundation | In progress | 5 / 8 |
 | Phase 2 — Auth & Multi-Tenancy | Not started | 0 / 13 |
 | Phase 3 — Core Inventory | Not started | 0 / 24 |
 | Phase 4 — Rentals | Not started | 0 / 18 |
 | Phase 5 — Payments | Not started | 0 / 5 |
 | Phase 6 — Frontend | Not started | 0 / 37 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **3 / 112** |
+| **Total** | | **5 / 112** |
 
 ---
 

@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: gcr
+      POSTGRES_PASSWORD: gcr_password
+      POSTGRES_DB: gcr_dev
+    ports:
+      - "5440:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_dev_data:
