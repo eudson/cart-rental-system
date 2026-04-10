@@ -6,7 +6,7 @@ export interface ApiError {
 
 export interface ApiSuccessResponse<T> {
   data: T;
-  meta: Record<string, never>;
+  meta: Record<string, unknown>;
   error: null;
 }
 

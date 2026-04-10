@@ -105,13 +105,13 @@
 ## Phase 3 — Core Inventory
 
 **Goal:** All core entities (orgs, locations, carts, customers, users) manageable via API.
-**Status:** Not started
-**Completed:** —
+**Status:** In progress
+**Completed:** Organizations list endpoint (`GET /organizations`)
 
 ### Tasks
 
 #### Organizations
-- [ ] `GET /organizations` — list all orgs (super_admin only)
+- [x] `GET /organizations` — list all orgs (super_admin only)
 - [ ] `POST /organizations` — create org
 - [ ] `GET /organizations/:id` — get org
 - [ ] `PATCH /organizations/:id` — update org (name, status, settings)
@@ -152,6 +152,10 @@
 
 ### Notes
 > Add implementation notes, decisions, or issues here as tasks are completed.
+
+- 2026-04-10: Implemented `GET /organizations` with `super_admin` access control (`JwtAuthGuard` → `RolesGuard` → `OrgGuard`) and consistent response envelopes.
+- 2026-04-10: Added a reusable API-wide pagination/search pattern in `apps/api/src/common/pagination` (`page`, `pageSize`, `search`) plus envelope `meta.pagination` support in the shared response interceptor utilities.
+- 2026-04-10: Added integration tests for organizations listing, role enforcement, pagination/search behavior, and invalid pagination query validation.
 
 ---
 
@@ -311,12 +315,12 @@
 |-------|--------|----------------|
 | Phase 1 — Foundation | Complete | 8 / 8 |
 | Phase 2 — Auth & Multi-Tenancy | Complete | 13 / 13 |
-| Phase 3 — Core Inventory | Not started | 0 / 24 |
+| Phase 3 — Core Inventory | In progress | 1 / 24 |
 | Phase 4 — Rentals | Not started | 0 / 18 |
 | Phase 5 — Payments | Not started | 0 / 5 |
 | Phase 6 — Frontend | Not started | 0 / 37 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **21 / 112** |
+| **Total** | | **22 / 112** |
 
 ---
 

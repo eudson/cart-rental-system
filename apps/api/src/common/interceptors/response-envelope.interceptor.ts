@@ -2,6 +2,7 @@ import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nes
 import { map, type Observable } from 'rxjs';
 
 import type { ApiSuccessResponse } from '../interfaces/api-response.interface';
+import { isResponseWithMeta } from './response-meta.util';
 
 @Injectable()
 export class ResponseEnvelopeInterceptor<T>
@@ -12,11 +13,21 @@ export class ResponseEnvelopeInterceptor<T>
     next: CallHandler<T>,
   ): Observable<ApiSuccessResponse<T>> {
     return next.handle().pipe(
-      map((data) => ({
-        data,
-        meta: {},
-        error: null,
-      })),
+      map((data) => {
+        if (isResponseWithMeta(data)) {
+          return {
+            data: data.payload as T,
+            meta: data.meta,
+            error: null,
+          };
+        }
+
+        return {
+          data,
+          meta: {},
+          error: null,
+        };
+      }),
     );
   }
 }

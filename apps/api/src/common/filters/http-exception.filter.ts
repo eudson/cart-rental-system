@@ -78,12 +78,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
   private defaultCodeForStatus(statusCode: number): string {
     switch (statusCode) {
+      case HttpStatus.BAD_REQUEST:
+        return 'BAD_REQUEST';
       case HttpStatus.UNAUTHORIZED:
         return 'UNAUTHORIZED';
       case HttpStatus.FORBIDDEN:
         return 'FORBIDDEN';
       case HttpStatus.NOT_FOUND:
         return 'NOT_FOUND';
+      case HttpStatus.CONFLICT:
+        return 'CONFLICT';
+      case HttpStatus.UNPROCESSABLE_ENTITY:
+        return 'UNPROCESSABLE_ENTITY';
       default:
         return 'INTERNAL_SERVER_ERROR';
     }

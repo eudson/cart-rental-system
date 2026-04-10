@@ -3,13 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "pnpm --filter shared build && tsc -p tsconfig.json",
     "prisma:generate": "set -a && . ../../.env && set +a && prisma generate --schema prisma/schema.prisma",
     "prisma:migrate": "set -a && . ../../.env && set +a && prisma migrate dev --schema prisma/schema.prisma",
     "prisma:studio": "set -a && . ../../.env && set +a && prisma studio --schema prisma/schema.prisma",
     "prisma:validate": "set -a && . ../../.env && set +a && prisma validate --schema prisma/schema.prisma",
     "start": "set -a && . ../../.env && set +a && node dist/src/main.js",
-    "test": "node --test dist/test/*.test.js"
+    "test": "pnpm --filter shared build && node --test dist/test/*.test.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.18",

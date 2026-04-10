@@ -156,6 +156,18 @@ async checkout(organizationId: string, rentalId: string) {
 - Use plural resource names: `/carts`, `/rentals`, `/customers`
 - Actions that are not CRUD use POST with a verb path segment: `POST /rentals/:id/checkout`
 - Query filters use camelCase params: `?locationId=&status=&type=`
+- Every list endpoint must support the shared pagination/search query pattern:
+  - `page` (default `1`)
+  - `pageSize` (default `20`, max `100`)
+  - `search` (optional, trimmed string)
+- Every paginated list response must include pagination metadata in the envelope `meta` object:
+  - `meta.pagination.page`
+  - `meta.pagination.pageSize`
+  - `meta.pagination.totalItems`
+  - `meta.pagination.totalPages`
+  - `meta.pagination.search` (`null` when search is not provided)
+- In API implementation, reuse the shared pagination/query utilities in `apps/api/src/common/pagination` and envelope meta helper utilities in `apps/api/src/common/interceptors`. Do not reimplement pagination parsing per module.
+- Search matching should be case-insensitive and scoped to the resource's primary readable fields (for example, `name`, `slug`, or equivalent identifier fields).
 - HTTP status codes must be semantically correct: `200`, `201`, `400`, `401`, `403`, `404`, `409`, `422`
 
 ---
