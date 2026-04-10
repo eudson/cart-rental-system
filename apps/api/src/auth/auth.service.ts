@@ -140,7 +140,9 @@ export class AuthService {
 
   async logout(userId: string): Promise<void> {
     this.logger.log(`Staff logout — userId=${userId}`);
-    await this.prisma.user.update({
+    // updateMany avoids a P2025 throw when the token's sub no longer matches a
+    // DB row (e.g. after a DB reset). If the user is already gone, logout succeeds.
+    await this.prisma.user.updateMany({
       where: { id: userId },
       data: { refreshTokenHash: null },
     });
