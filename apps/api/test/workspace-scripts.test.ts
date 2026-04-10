@@ -21,6 +21,7 @@ test('workspace manifests expose the root and package scripts needed for Phase 1
 
   assert.deepEqual(rootManifest.scripts, {
     'db:migrate': 'pnpm --filter api prisma:migrate',
+    'db:seed': 'pnpm --filter api prisma:seed',
     'db:studio': 'pnpm --filter api prisma:studio',
     'dev:api': 'pnpm --filter api start',
     'dev:web': 'pnpm --filter web dev',

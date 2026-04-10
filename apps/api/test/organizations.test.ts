@@ -227,3 +227,194 @@ test('GET /organizations — invalid page query value returns 400', async () => 
   const body = (await res.json()) as { error: { code: string } };
   assert.equal(body.error.code, 'BAD_REQUEST');
 });
+
+test('POST /organizations — missing JWT returns 401', async () => {
+  const res = await fetch(`${baseUrl}/organizations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Foxtrot Links',
+      slug: 'test-orgs-phase3-foxtrot',
+    }),
+  });
+
+  assert.equal(res.status, 401);
+});
+
+test('POST /organizations — non-super_admin role returns 403', async () => {
+  const staffToken = await loginAs(STAFF_EMAIL);
+
+  const res = await fetch(`${baseUrl}/organizations`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${staffToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: 'Foxtrot Links',
+      slug: 'test-orgs-phase3-foxtrot',
+    }),
+  });
+
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'FORBIDDEN');
+});
+
+test('POST /organizations — super_admin can create org with settings', async () => {
+  const superAdminToken = await loginAs(SUPER_ADMIN_EMAIL);
+
+  const res = await fetch(`${baseUrl}/organizations`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${superAdminToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: 'Foxtrot Links',
+      slug: 'test-orgs-phase3-foxtrot',
+      status: 'active',
+      minLeaseMonths: 8,
+      defaultDailyRate: 120.5,
+      defaultMonthlyRate: 2500,
+    }),
+  });
+
+  assert.equal(res.status, 201);
+  const body = (await res.json()) as {
+    data: {
+      id: string;
+      name: string;
+      slug: string;
+      status: string;
+      minLeaseMonths: number;
+      defaultDailyRate: string | null;
+      defaultMonthlyRate: string | null;
+    };
+  };
+
+  assert.ok(body.data.id);
+  assert.equal(body.data.name, 'Foxtrot Links');
+  assert.equal(body.data.slug, 'test-orgs-phase3-foxtrot');
+  assert.equal(body.data.status, 'active');
+  assert.equal(body.data.minLeaseMonths, 8);
+  assert.equal(body.data.defaultDailyRate, '120.5');
+  assert.equal(body.data.defaultMonthlyRate, '2500');
+});
+
+test('POST /organizations — duplicate slug returns 409', async () => {
+  const superAdminToken = await loginAs(SUPER_ADMIN_EMAIL);
+
+  const res = await fetch(`${baseUrl}/organizations`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${superAdminToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: 'Duplicate Slug',
+      slug: 'test-orgs-phase3-alpha',
+    }),
+  });
+
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'CONFLICT');
+});
+
+test('GET /organizations/:id — super_admin can fetch organization', async () => {
+  const superAdminToken = await loginAs(SUPER_ADMIN_EMAIL);
+  const organization = await prisma.organization.findUnique({
+    where: { slug: 'test-orgs-phase3-alpha' },
+    select: { id: true },
+  });
+  assert.ok(organization?.id);
+
+  const res = await fetch(`${baseUrl}/organizations/${organization.id}`, {
+    headers: { Authorization: `Bearer ${superAdminToken}` },
+  });
+
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as {
+    data: {
+      id: string;
+      name: string;
+      slug: string;
+      status: string;
+    };
+  };
+  assert.equal(body.data.id, organization.id);
+  assert.equal(body.data.slug, 'test-orgs-phase3-alpha');
+});
+
+test('GET /organizations/:id — unknown id returns 404', async () => {
+  const superAdminToken = await loginAs(SUPER_ADMIN_EMAIL);
+
+  const res = await fetch(`${baseUrl}/organizations/52ea9ef8-6a3a-4df0-8f75-6d846fe6c4fb`, {
+    headers: { Authorization: `Bearer ${superAdminToken}` },
+  });
+
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'NOT_FOUND');
+});
+
+test('PATCH /organizations/:id — super_admin can update org fields', async () => {
+  const superAdminToken = await loginAs(SUPER_ADMIN_EMAIL);
+  const target = await prisma.organization.findUnique({
+    where: { slug: 'test-orgs-phase3-beta' },
+    select: { id: true },
+  });
+  assert.ok(target?.id);
+
+  const res = await fetch(`${baseUrl}/organizations/${target.id}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${superAdminToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: 'Beta Cart Rentals Updated',
+      status: 'suspended',
+      minLeaseMonths: 10,
+      defaultDailyRate: 140,
+      defaultMonthlyRate: 3000,
+    }),
+  });
+
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as {
+    data: {
+      id: string;
+      name: string;
+      status: string;
+      minLeaseMonths: number;
+      defaultDailyRate: string | null;
+      defaultMonthlyRate: string | null;
+    };
+  };
+
+  assert.equal(body.data.id, target.id);
+  assert.equal(body.data.name, 'Beta Cart Rentals Updated');
+  assert.equal(body.data.status, 'suspended');
+  assert.equal(body.data.minLeaseMonths, 10);
+  assert.equal(body.data.defaultDailyRate, '140');
+  assert.equal(body.data.defaultMonthlyRate, '3000');
+});
+
+test('PATCH /organizations/:id — unknown id returns 404', async () => {
+  const superAdminToken = await loginAs(SUPER_ADMIN_EMAIL);
+
+  const res = await fetch(`${baseUrl}/organizations/52ea9ef8-6a3a-4df0-8f75-6d846fe6c4fb`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${superAdminToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name: 'Does Not Exist' }),
+  });
+
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'NOT_FOUND');
+});

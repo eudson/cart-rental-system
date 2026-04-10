@@ -106,50 +106,50 @@
 ## Phase 3 — Core Inventory
 
 **Goal:** All core entities (orgs, locations, carts, customers, users) manageable via API.
-**Status:** In progress
-**Completed:** Organizations list endpoint (`GET /organizations`)
+**Status:** Complete
+**Completed:** Organizations endpoints (`GET /organizations`, `POST /organizations`, `GET /organizations/:id`, `PATCH /organizations/:id`), Locations endpoints (`GET /locations`, `POST /locations`, `GET /locations/:id`, `PATCH /locations/:id`), Users endpoints (`GET /users`, `POST /users`, `GET /users/:id`, `PATCH /users/:id`, `DELETE /users/:id`), Customers endpoints (`GET /customers`, `POST /customers`, `GET /customers/:id`, `PATCH /customers/:id`) with duplicate email conflict handling, Cart Types endpoints (`GET /cart-types`, `POST /cart-types`, `GET /cart-types/:id`, `PATCH /cart-types/:id`, `DELETE /cart-types/:id`) with in-use protection, and Carts endpoints (`GET /carts`, `POST /carts`, `GET /carts/:id`, `PATCH /carts/:id`) with status transition validation
 
 ### Tasks
 
 #### Organizations
 - [x] `GET /organizations` — list all orgs (super_admin only)
-- [ ] `POST /organizations` — create org
-- [ ] `GET /organizations/:id` — get org
-- [ ] `PATCH /organizations/:id` — update org (name, status, settings)
+- [x] `POST /organizations` — create org
+- [x] `GET /organizations/:id` — get org
+- [x] `PATCH /organizations/:id` — update org (name, status, settings)
 
 #### Locations
-- [ ] `GET /locations` — list locations for org
-- [ ] `POST /locations` — create location
-- [ ] `GET /locations/:id` — get location
-- [ ] `PATCH /locations/:id` — update location
+- [x] `GET /locations` — list locations for org
+- [x] `POST /locations` — create location
+- [x] `GET /locations/:id` — get location
+- [x] `PATCH /locations/:id` — update location
 
 #### Users
-- [ ] `GET /users` — list users in org
-- [ ] `POST /users` — create user (org_admin only), password hashing
-- [ ] `GET /users/:id` — get user
-- [ ] `PATCH /users/:id` — update user
-- [ ] `DELETE /users/:id` — soft delete (set `isActive = false`)
+- [x] `GET /users` — list users in org
+- [x] `POST /users` — create user (org_admin only), password hashing
+- [x] `GET /users/:id` — get user
+- [x] `PATCH /users/:id` — update user
+- [x] `DELETE /users/:id` — soft delete (set `isActive = false`)
 
 #### Customers
-- [ ] `GET /customers` — list customers in org
-- [ ] `POST /customers` — create customer (composite unique enforced)
-- [ ] `GET /customers/:id` — get customer
-- [ ] `PATCH /customers/:id` — update customer
-- [ ] Duplicate email rejection (`CUSTOMER_EMAIL_EXISTS` → 409)
+- [x] `GET /customers` — list customers in org
+- [x] `POST /customers` — create customer (composite unique enforced)
+- [x] `GET /customers/:id` — get customer
+- [x] `PATCH /customers/:id` — update customer
+- [x] Duplicate email rejection (`CUSTOMER_EMAIL_EXISTS` → 409)
 
 #### Cart Types
-- [ ] `GET /cart-types` — list cart types for org
-- [ ] `POST /cart-types` — create cart type
-- [ ] `GET /cart-types/:id` — get cart type
-- [ ] `PATCH /cart-types/:id` — update cart type
-- [ ] `DELETE /cart-types/:id` — delete (reject if carts assigned → `CART_TYPE_IN_USE` → 409)
+- [x] `GET /cart-types` — list cart types for org
+- [x] `POST /cart-types` — create cart type
+- [x] `GET /cart-types/:id` — get cart type
+- [x] `PATCH /cart-types/:id` — update cart type
+- [x] `DELETE /cart-types/:id` — delete (reject if carts assigned → `CART_TYPE_IN_USE` → 409)
 
 #### Carts
-- [ ] `GET /carts` — list carts (filters: `?locationId=&status=`)
-- [ ] `POST /carts` — register new cart
-- [ ] `GET /carts/:id` — get cart details
-- [ ] `PATCH /carts/:id` — update cart
-- [ ] Cart status transition validation (invalid transitions rejected → `INVALID_STATUS_TRANSITION` → 422)
+- [x] `GET /carts` — list carts (filters: `?locationId=&status=`)
+- [x] `POST /carts` — register new cart
+- [x] `GET /carts/:id` — get cart details
+- [x] `PATCH /carts/:id` — update cart
+- [x] Cart status transition validation (invalid transitions rejected → `INVALID_STATUS_TRANSITION` → 422)
 
 ### Notes
 > Add implementation notes, decisions, or issues here as tasks are completed.
@@ -157,6 +157,18 @@
 - 2026-04-10: Implemented `GET /organizations` with `super_admin` access control (`JwtAuthGuard` → `RolesGuard` → `OrgGuard`) and consistent response envelopes.
 - 2026-04-10: Added a reusable API-wide pagination/search pattern in `apps/api/src/common/pagination` (`page`, `pageSize`, `search`) plus envelope `meta.pagination` support in the shared response interceptor utilities.
 - 2026-04-10: Added integration tests for organizations listing, role enforcement, pagination/search behavior, and invalid pagination query validation.
+- 2026-04-10: Implemented `POST /organizations`, `GET /organizations/:id`, and `PATCH /organizations/:id` for `super_admin`, including request DTO validation, slug uniqueness conflict handling (`409 CONFLICT`), and explicit `404 NOT_FOUND` behavior.
+- 2026-04-10: Expanded organizations integration coverage for create/get/update success and error paths, and updated the workspace script test expectation to match the existing root `db:seed` script.
+- 2026-04-10: Implemented `GET /locations`, `POST /locations`, `GET /locations/:id`, and `PATCH /locations/:id` with role matrix enforcement (`staff` read, `org_admin/super_admin` write) and strict organization scoping from JWT `organizationId`.
+- 2026-04-10: Added locations DTO validation plus shared pagination/search support for location listing and integration tests covering auth, role authorization, pagination validation, cross-org access rejection, and update flows.
+- 2026-04-10: Implemented `GET /users`, `POST /users`, `GET /users/:id`, `PATCH /users/:id`, and `DELETE /users/:id` with strict org scoping, `org_admin`-only write access, password hashing on create/update, and soft delete behavior (`isActive=false`).
+- 2026-04-10: Added users integration coverage for auth/role permissions, pagination/search listing, duplicate email conflict handling, cross-org isolation, password hash verification, and live curl validation against localhost (`admin@demo-org.com`, `staff@demo-org.com`).
+- 2026-04-10: Implemented `GET /customers`, `POST /customers`, `GET /customers/:id`, and `PATCH /customers/:id` with org-scoped queries, password hashing on create/update, and `CUSTOMER_EMAIL_EXISTS` (`409`) on duplicate customer email in the same org.
+- 2026-04-10: Added customer integration tests for auth and org isolation, pagination/search listing, create/update password hash verification, and duplicate email conflict behavior. Also validated with live curls against localhost using seeded `staff@demo-org.com` and `admin@demo-org.com` credentials.
+- 2026-04-10: Implemented `GET /cart-types`, `POST /cart-types`, `GET /cart-types/:id`, `PATCH /cart-types/:id`, and `DELETE /cart-types/:id` with strict org scoping, shared pagination/search metadata, role matrix enforcement (`staff` read, `org_admin/super_admin` write), and `CART_TYPE_IN_USE` (`409`) protection when carts are assigned.
+- 2026-04-10: Implemented `GET /carts`, `POST /carts`, `GET /carts/:id`, and `PATCH /carts/:id` with org-scoped location/cart-type validation, list filters (`locationId`, `status`) plus shared pagination/search metadata, and role handling where `staff` can only patch `status`.
+- 2026-04-10: Added explicit cart status transition map validation for all status mutations and return `INVALID_STATUS_TRANSITION` (`422`) when transition rules are violated.
+- 2026-04-10: Verified all cart-types and carts endpoints with integration tests and live curls against `http://localhost:3000/v1` using seeded `admin@demo-org.com` and `staff@demo-org.com` credentials.
 
 ---
 
@@ -316,12 +328,12 @@
 |-------|--------|----------------|
 | Phase 1 — Foundation | Complete | 9 / 9 |
 | Phase 2 — Auth & Multi-Tenancy | Complete | 13 / 13 |
-| Phase 3 — Core Inventory | In progress | 1 / 24 |
+| Phase 3 — Core Inventory | Complete | 24 / 24 |
 | Phase 4 — Rentals | Not started | 0 / 18 |
 | Phase 5 — Payments | Not started | 0 / 5 |
 | Phase 6 — Frontend | Not started | 0 / 37 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **22 / 113** |
+| **Total** | | **45 / 113** |
 
 ---
 
