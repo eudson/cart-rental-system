@@ -52,6 +52,18 @@ async function main(): Promise<void> {
   console.log(`✔ Location: ${location.name}`);
 
   // ── Staff users ──────────────────────────────────────────────────────────────
+  const superAdmin = await prisma.user.upsert({
+    where: { organizationId_email: { organizationId: org.id, email: 'superadmin@demo-org.com' } },
+    update: {},
+    create: {
+      organizationId: org.id,
+      name: 'Demo Super Admin',
+      email: 'superadmin@demo-org.com',
+      passwordHash: await hash('seed-password-superadmin'),
+      role: 'super_admin',
+    },
+  });
+
   const adminUser = await prisma.user.upsert({
     where: { organizationId_email: { organizationId: org.id, email: 'admin@demo-org.com' } },
     update: {},
@@ -77,7 +89,7 @@ async function main(): Promise<void> {
     },
   });
 
-  console.log(`✔ Users: ${adminUser.email} (org_admin), ${staffUser.email} (staff)`);
+  console.log(`✔ Users: ${superAdmin.email} (super_admin), ${adminUser.email} (org_admin), ${staffUser.email} (staff)`);
 
   // ── Customer ─────────────────────────────────────────────────────────────────
   const customer = await prisma.customer.upsert({
@@ -130,10 +142,11 @@ async function main(): Promise<void> {
 
   console.log('\n─────────────────────────────────────────');
   console.log('Seed complete. Test credentials:');
-  console.log('  org slug : demo-org');
-  console.log('  org_admin: admin@demo-org.com   / seed-password-admin');
-  console.log('  staff    : staff@demo-org.com   / seed-password-staff');
-  console.log('  customer : customer@demo-org.com / seed-password-customer');
+  console.log('  org slug   : demo-org');
+  console.log('  super_admin: superadmin@demo-org.com / seed-password-superadmin');
+  console.log('  org_admin  : admin@demo-org.com      / seed-password-admin');
+  console.log('  staff      : staff@demo-org.com      / seed-password-staff');
+  console.log('  customer   : customer@demo-org.com   / seed-password-customer');
   console.log('─────────────────────────────────────────');
 }
 
