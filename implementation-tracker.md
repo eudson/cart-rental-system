@@ -35,7 +35,7 @@
 
 **Goal:** Monorepo scaffold, database schema, local dev environment running.
 **Status:** Complete
-**Completed:** Monorepo scaffold, Shared package bootstrap, Prisma schema, Initial Prisma migration, Docker dev environment, NestJS app bootstrap, Prisma module + service wiring, Root workspace scripts
+**Completed:** Monorepo scaffold, Shared package bootstrap, Prisma schema, Initial Prisma migration, Docker dev environment, NestJS app bootstrap, Prisma module + service wiring, Root workspace scripts, Dev seed script
 
 ### Tasks
 - [x] Monorepo scaffold (pnpm workspaces, folder structure per PRD)
@@ -46,6 +46,7 @@
 - [x] NestJS app bootstrap (`main.ts`, `app.module.ts`, global exception filter)
 - [x] Prisma module + service wired into NestJS
 - [x] Root `package.json` scripts validated (`dev:api`, `dev:web`, `db:migrate`, `db:studio`)
+- [x] Dev seed script (`pnpm db:seed` — org, users, customer, cart type, cart)
 
 ### Notes
 > Add implementation notes, decisions, or issues here as tasks are completed.
@@ -313,14 +314,14 @@
 
 | Phase | Status | Completed Tasks |
 |-------|--------|----------------|
-| Phase 1 — Foundation | Complete | 8 / 8 |
+| Phase 1 — Foundation | Complete | 9 / 9 |
 | Phase 2 — Auth & Multi-Tenancy | Complete | 13 / 13 |
 | Phase 3 — Core Inventory | In progress | 1 / 24 |
 | Phase 4 — Rentals | Not started | 0 / 18 |
 | Phase 5 — Payments | Not started | 0 / 5 |
 | Phase 6 — Frontend | Not started | 0 / 37 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **22 / 112** |
+| **Total** | | **22 / 113** |
 
 ---
 

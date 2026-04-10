@@ -9,7 +9,8 @@
     "prisma:studio": "set -a && . ../../.env && set +a && prisma studio --schema prisma/schema.prisma",
     "prisma:validate": "set -a && . ../../.env && set +a && prisma validate --schema prisma/schema.prisma",
     "start": "set -a && . ../../.env && set +a && node dist/src/main.js",
-    "test": "pnpm --filter shared build && node --test dist/test/*.test.js"
+    "test": "pnpm --filter shared build && node --test dist/test/*.test.js",
+    "prisma:seed": "set -a && . ../../.env && set +a && ts-node -r tsconfig-paths/register prisma/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.18",
@@ -32,6 +33,11 @@
     "@types/node": "^25.5.2",
     "@types/passport-jwt": "^4.0.1",
     "prisma": "^6.18.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^6.0.2"
+  },
+  "prisma": {
+    "seed": "pnpm prisma:seed"
   }
 }

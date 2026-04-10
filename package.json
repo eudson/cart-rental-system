@@ -5,6 +5,7 @@
     "db:migrate": "pnpm --filter api prisma:migrate",
     "db:studio": "pnpm --filter api prisma:studio",
     "dev:api": "pnpm --filter api start",
+    "db:seed": "pnpm --filter api prisma:seed",
     "dev:web": "pnpm --filter web dev"
   },
   "pnpm": {
