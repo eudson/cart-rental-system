@@ -28,13 +28,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDateTime } from '@/lib/format';
+import { showErrorToast, showSuccessToast } from '@/lib/toast';
 import { ApiClientError } from '@/services/api-client';
 import { listCartTypes } from '@/services/cart-types-service';
 import { createCart, listCarts } from '@/services/carts-service';
 import { listLocations } from '@/services/locations-service';
 import { useAuthStore } from '@/store/auth-store';
 import { StatusBadge } from '@/components/common/status-badge';
-import { toast } from 'sonner';
 
 type CartStatusFilter = CartStatus | 'all';
 
@@ -98,7 +98,7 @@ export function CartsListPage() {
   const createCartMutation = useMutation({
     mutationFn: (dto: CreateCartRequestDto) => createCart(dto),
     onSuccess: async () => {
-      toast.success('Cart registered successfully.');
+      showSuccessToast('Cart registered successfully.');
       setIsCreateDialogOpen(false);
       setCreateForm(INITIAL_CREATE_FORM);
       setCreateFormError(null);
@@ -111,7 +111,7 @@ export function CartsListPage() {
           : 'Unable to create cart. Please try again.';
 
       setCreateFormError(message);
-      toast.error(message, { duration: 8000, closeButton: true });
+      showErrorToast(message);
     },
   });
 

@@ -31,13 +31,13 @@ import {
   formatDateTime,
   formatStatusLabel,
 } from '@/lib/format';
+import { showErrorToast, showSuccessToast } from '@/lib/toast';
 import { ApiClientError } from '@/services/api-client';
 import {
   createRentalPayment,
   getRentalById,
   listRentalPayments,
 } from '@/services/rentals-service';
-import { toast } from 'sonner';
 
 interface PaymentFormState {
   amount: string;
@@ -87,7 +87,7 @@ export function RentalDetailPage() {
   const createPaymentMutation = useMutation({
     mutationFn: (dto: CreateRentalPaymentRequestDto) => createRentalPayment(safeRentalId, dto),
     onSuccess: async () => {
-      toast.success('Payment recorded successfully.');
+      showSuccessToast('Payment recorded successfully.');
       setPaymentForm(INITIAL_PAYMENT_FORM);
       setPaymentFormError(null);
       await queryClient.invalidateQueries({ queryKey: ['rental-payments', safeRentalId] });
@@ -99,7 +99,7 @@ export function RentalDetailPage() {
           : 'Unable to record payment. Please try again.';
 
       setPaymentFormError(message);
-      toast.error(message, { duration: 8000, closeButton: true });
+      showErrorToast(message);
     },
   });
 

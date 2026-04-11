@@ -27,9 +27,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDateTime } from '@/lib/format';
+import { showErrorToast, showSuccessToast } from '@/lib/toast';
 import { ApiClientError } from '@/services/api-client';
 import { createCustomer, listCustomers } from '@/services/customers-service';
-import { toast } from 'sonner';
 
 interface CreateCustomerFormState {
   name: string;
@@ -71,7 +71,7 @@ export function CustomersListPage() {
   const createCustomerMutation = useMutation({
     mutationFn: (dto: CreateCustomerRequestDto) => createCustomer(dto),
     onSuccess: async () => {
-      toast.success('Customer created successfully.');
+      showSuccessToast('Customer created successfully.');
       setCreateForm(INITIAL_CREATE_FORM);
       setCreateFormError(null);
       setIsCreateDialogOpen(false);
@@ -84,7 +84,7 @@ export function CustomersListPage() {
           : 'Unable to create customer. Please try again.';
 
       setCreateFormError(message);
-      toast.error(message, { duration: 8000, closeButton: true });
+      showErrorToast(message);
     },
   });
 

@@ -2,11 +2,11 @@ import { useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import type { LoginRequestDto } from 'shared';
 import { UserRole } from 'shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { showErrorToast } from '@/lib/toast';
 import { ApiClientError } from '@/services/api-client';
 import { loginCustomer, loginStaff } from '@/services/auth-service';
 import { parseAccessTokenClaims } from '@/services/auth-token';
@@ -93,21 +93,21 @@ function LoginPage({ variant, title, description, submitLabel }: LoginPageConfig
       if (!claims) {
         const message = 'Login succeeded, but session claims were invalid. Please log in again.';
         setFormErrorMessage(message);
-        toast.error(message, { duration: 8000, closeButton: true });
+        showErrorToast(message);
         return;
       }
 
       if (variant === 'staff' && claims.role === 'customer') {
         const message = 'Customer credentials cannot access the staff application.';
         setFormErrorMessage(message);
-        toast.error(message, { duration: 8000, closeButton: true });
+        showErrorToast(message);
         return;
       }
 
       if (variant === 'customer' && claims.role !== 'customer') {
         const message = 'Staff credentials must use the staff/admin login route.';
         setFormErrorMessage(message);
-        toast.error(message, { duration: 8000, closeButton: true });
+        showErrorToast(message);
         return;
       }
 
@@ -130,7 +130,7 @@ function LoginPage({ variant, title, description, submitLabel }: LoginPageConfig
         const message =
           'Invalid credentials. Please verify your email, password, and organization slug.';
         setFormErrorMessage(message);
-        toast.error(message, { duration: 8000, closeButton: true });
+        showErrorToast(message);
         return;
       }
 
@@ -139,7 +139,7 @@ function LoginPage({ variant, title, description, submitLabel }: LoginPageConfig
           ? error.message
           : 'Login failed. Please try again in a moment.';
       setFormErrorMessage(message);
-      toast.error(message, { duration: 8000, closeButton: true });
+      showErrorToast(message);
     },
   });
 
