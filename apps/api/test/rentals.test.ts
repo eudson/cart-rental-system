@@ -33,6 +33,7 @@ let primaryCustomerId: string;
 let primaryAvailableCartId: string;
 let primaryUnavailableCartId: string;
 let primaryOverlapCartId: string;
+let primaryLeaseCartId: string;
 
 let otherOrgCustomerId: string;
 
@@ -143,6 +144,17 @@ before(async () => {
     },
   });
   primaryOverlapCartId = overlapCart.id;
+
+  const leaseCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrg.id,
+      locationId: primaryLocation.id,
+      cartTypeId: primaryCartType.id,
+      label: 'RENT-400',
+      status: 'available',
+    },
+  });
+  primaryLeaseCartId = leaseCart.id;
 
   const primaryCustomer = await prisma.customer.create({
     data: {
@@ -434,4 +446,191 @@ test('POST /rentals — startDate must be before endDate', async () => {
   assert.equal(response.status, 400);
   const body = (await response.json()) as { error: { code: string } };
   assert.equal(body.error.code, 'BAD_REQUEST');
+});
+
+test('POST /rentals — lease rental enforces min contract months', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+
+  const response = await fetch(`${baseUrl}/rentals`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      type: 'lease',
+      customerId: primaryCustomerId,
+      cartId: primaryLeaseCartId,
+      startDate: '2026-08-01T00:00:00.000Z',
+      contractMonths: 5,
+      notes: 'lease below minimum',
+    }),
+  });
+
+  assert.equal(response.status, 422);
+  const body = (await response.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'LEASE_MIN_MONTHS');
+});
+
+test('POST /rentals — staff can create lease rental with monthly snapshot and total amount', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+
+  const response = await fetch(`${baseUrl}/rentals`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      type: 'lease',
+      customerId: primaryCustomerId,
+      cartId: primaryLeaseCartId,
+      startDate: '2026-08-01T00:00:00.000Z',
+      contractMonths: 6,
+      notes: 'initial lease rental',
+    }),
+  });
+
+  assert.equal(response.status, 201);
+  const body = (await response.json()) as {
+    data: {
+      id: string;
+      type: string;
+      status: string;
+      cartId: string;
+      dailyRateSnapshot: string | null;
+      monthlyRateSnapshot: string | null;
+      totalAmount: string | null;
+      endDate: string;
+    };
+  };
+
+  assert.ok(body.data.id);
+  assert.equal(body.data.type, 'lease');
+  assert.equal(body.data.status, 'pending');
+  assert.equal(body.data.cartId, primaryLeaseCartId);
+  assert.equal(body.data.dailyRateSnapshot, null);
+  assert.equal(body.data.monthlyRateSnapshot, '1200');
+  assert.equal(body.data.totalAmount, '7200');
+  assert.equal(body.data.endDate, '2027-02-01T00:00:00.000Z');
+
+  const updatedCart = await prisma.cart.findUnique({
+    where: { id: primaryLeaseCartId },
+    select: { status: true },
+  });
+  assert.equal(updatedCart?.status, 'reserved');
+});
+
+test('POST /rentals/:id/contract — creates lease contract record', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+  const leaseRental = await prisma.rental.findFirst({
+    where: {
+      organizationId: primaryOrgId,
+      cartId: primaryLeaseCartId,
+      type: 'lease',
+    },
+    select: { id: true },
+  });
+  assert.ok(leaseRental?.id);
+
+  const response = await fetch(`${baseUrl}/rentals/${leaseRental.id}/contract`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contractMonths: 6,
+      earlyTerminationFee: 300,
+    }),
+  });
+
+  assert.equal(response.status, 201);
+  const body = (await response.json()) as {
+    data: {
+      rentalId: string;
+      contractMonths: number;
+      earlyTerminationFee: string | null;
+    };
+  };
+  assert.equal(body.data.rentalId, leaseRental.id);
+  assert.equal(body.data.contractMonths, 6);
+  assert.equal(body.data.earlyTerminationFee, '300');
+});
+
+test('PATCH /rentals/:id/contract — updates lease contract fields', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+  const leaseRental = await prisma.rental.findFirst({
+    where: {
+      organizationId: primaryOrgId,
+      cartId: primaryLeaseCartId,
+      type: 'lease',
+    },
+    select: { id: true },
+  });
+  assert.ok(leaseRental?.id);
+
+  const response = await fetch(`${baseUrl}/rentals/${leaseRental.id}/contract`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      signedAt: '2026-08-05T12:00:00.000Z',
+      documentUrl: 'https://files.example.com/contracts/lease-001.pdf',
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as {
+    data: {
+      rentalId: string;
+      signedAt: string | null;
+      documentUrl: string | null;
+    };
+  };
+  assert.equal(body.data.rentalId, leaseRental.id);
+  assert.equal(body.data.signedAt, '2026-08-05T12:00:00.000Z');
+  assert.equal(
+    body.data.documentUrl,
+    'https://files.example.com/contracts/lease-001.pdf',
+  );
+});
+
+test('GET /rentals/:id/contract — returns lease contract details', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+  const leaseRental = await prisma.rental.findFirst({
+    where: {
+      organizationId: primaryOrgId,
+      cartId: primaryLeaseCartId,
+      type: 'lease',
+    },
+    select: { id: true },
+  });
+  assert.ok(leaseRental?.id);
+
+  const response = await fetch(`${baseUrl}/rentals/${leaseRental.id}/contract`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as {
+    data: {
+      rentalId: string;
+      contractMonths: number;
+      signedAt: string | null;
+      documentUrl: string | null;
+    };
+  };
+
+  assert.equal(body.data.rentalId, leaseRental.id);
+  assert.equal(body.data.contractMonths, 6);
+  assert.equal(body.data.signedAt, '2026-08-05T12:00:00.000Z');
+  assert.equal(
+    body.data.documentUrl,
+    'https://files.example.com/contracts/lease-001.pdf',
+  );
 });

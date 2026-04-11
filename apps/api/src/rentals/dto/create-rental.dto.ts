@@ -1,5 +1,13 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+} from 'class-validator';
 import { RentalType } from 'shared';
 
 export class CreateRentalDto {
@@ -21,7 +29,14 @@ export class CreateRentalDto {
 
   @Type(() => String)
   @IsDateString()
-  endDate!: string;
+  @IsOptional()
+  endDate?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  contractMonths?: number;
 
   @IsOptional()
   @Type(() => String)

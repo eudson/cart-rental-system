@@ -176,7 +176,7 @@
 
 **Goal:** Full rental lifecycle working for both daily and lease rentals. Double-booking prevention enforced.
 **Status:** In progress
-**Completed:** Availability endpoint (`GET /carts/availability`) with overlap filtering and transaction-scoped query execution; Daily rental creation (`POST /rentals`) with snapshot pricing, overlap protection, and cart reservation
+**Completed:** Availability endpoint (`GET /carts/availability`) with overlap filtering and transaction-scoped query execution; Daily rental creation (`POST /rentals`) with snapshot pricing, overlap protection, and cart reservation; Lease rental creation and lease contract endpoints
 
 ### Tasks
 
@@ -193,13 +193,13 @@
 - [x] `totalAmount` calculation: `dailyRateSnapshot × days`
 
 #### Lease Rentals
-- [ ] `POST /rentals` — create lease rental (type: lease)
-- [ ] `contractMonths` validation against `org.minLeaseMonths` (`LEASE_MIN_MONTHS` → 422)
-- [ ] `POST /rentals/:id/contract` — create lease contract record
-- [ ] `PATCH /rentals/:id/contract` — update contract (signed date, document URL)
-- [ ] `GET /rentals/:id/contract` — get contract
-- [ ] Rate snapshot copied from CartType at time of booking
-- [ ] Cart blocked for full contract period
+- [x] `POST /rentals` — create lease rental (type: lease)
+- [x] `contractMonths` validation against `org.minLeaseMonths` (`LEASE_MIN_MONTHS` → 422)
+- [x] `POST /rentals/:id/contract` — create lease contract record
+- [x] `PATCH /rentals/:id/contract` — update contract (signed date, document URL)
+- [x] `GET /rentals/:id/contract` — get contract
+- [x] Rate snapshot copied from CartType at time of booking
+- [x] Cart blocked for full contract period
 
 #### Rental Actions
 - [ ] `POST /rentals/:id/checkout` — validate status, set cart to `rented`
@@ -218,6 +218,9 @@
 - 2026-04-11: Added `RentalsModule` with `POST /rentals` (staff/admin) for daily rentals, including strict org scoping, date-range validation, and full-day duration validation.
 - 2026-04-11: Daily rental creation now runs inside one Prisma `$transaction`: verifies customer/cart ownership, enforces cart availability, applies overlap conflict detection (`RENTAL_OVERLAP`), snapshots `CartType.dailyRate` to `dailyRateSnapshot`, calculates `totalAmount`, creates the rental, and updates cart status to `reserved`.
 - 2026-04-11: Added daily rental integration tests for success path, `CART_NOT_AVAILABLE`, `RENTAL_OVERLAP`, cross-org customer rejection, and invalid date ranges; also validated via live curl against `http://127.0.0.1:3000/v1`.
+- 2026-04-11: Extended `POST /rentals` to support lease rentals with `contractMonths` validation against `organization.minLeaseMonths` (`LEASE_MIN_MONTHS`), monthly rate snapshotting (`monthlyRateSnapshot`), total amount calculation (`monthlyRateSnapshot × contractMonths`), and contract-period end-date calculation.
+- 2026-04-11: Added lease contract endpoints (`POST /rentals/:id/contract`, `PATCH /rentals/:id/contract`, `GET /rentals/:id/contract`) with org-scoped rental checks and lease-only enforcement.
+- 2026-04-11: Added lease integration coverage for min-month validation, lease creation, and contract create/update/get flows; validated all lease APIs with live curls using seeded credentials.
 
 ---
 
@@ -336,11 +339,11 @@
 | Phase 1 — Foundation | Complete | 9 / 9 |
 | Phase 2 — Auth & Multi-Tenancy | Complete | 13 / 13 |
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
-| Phase 4 — Rentals | In progress | 8 / 18 |
+| Phase 4 — Rentals | In progress | 15 / 18 |
 | Phase 5 — Payments | Not started | 0 / 5 |
 | Phase 6 — Frontend | Not started | 0 / 37 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **53 / 113** |
+| **Total** | | **60 / 113** |
 
 ---
 
