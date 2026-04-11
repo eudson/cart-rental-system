@@ -71,25 +71,25 @@ const settingsLinks: SidebarLink[] = [
     label: 'Organization',
     href: '/settings/organization',
     icon: Building2,
-    roles: [UserRole.org_admin, UserRole.super_admin],
+    roles: [UserRole.org_admin],
   },
   {
     label: 'Locations',
     href: '/settings/locations',
     icon: MapPin,
-    roles: [UserRole.org_admin, UserRole.super_admin],
+    roles: [UserRole.org_admin],
   },
   {
     label: 'Cart Types',
     href: '/settings/cart-types',
     icon: Tag,
-    roles: [UserRole.org_admin, UserRole.super_admin],
+    roles: [UserRole.org_admin],
   },
   {
     label: 'Users',
     href: '/settings/users',
     icon: UserCog,
-    roles: [UserRole.org_admin, UserRole.super_admin],
+    roles: [UserRole.org_admin],
   },
 ];
 

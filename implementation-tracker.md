@@ -259,7 +259,7 @@
 
 **Goal:** Fully functional web app for staff/admin operations and customer read-only portal.
 **Status:** In progress
-**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError
+**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata
 
 ### Tasks
 
@@ -284,7 +284,7 @@
 
 #### App Foundation
 - [x] Vite + React + TypeScript app scaffold
-- [ ] React Router configured (role-based routing per PRD section 9)
+- [x] React Router configured (role-based routing per PRD section 9)
 - [ ] Zustand store (auth state, current user/org)
 - [ ] TanStack Query configured (API client, caching)
 - [ ] API service layer (typed, uses shared DTOs)
@@ -355,6 +355,8 @@
 - 2026-04-11: Added reusable layout shell components (`AppLayout`, `Sidebar`, `TopBar`, `PageWrapper`) aligned to `DESIGN.md` dimensions and spacing rules, including role-aware sidebar navigation and a user/logout menu surface.
 - 2026-04-11: Added shared UI state primitives (`StatusBadge`, `EmptyState`, `PageError`) with status-to-token mapping across cart/rental/payment flows and optional CTA/retry hooks for page-level integration.
 - 2026-04-11: Updated `src/App.tsx` to render the new shell/components as a working foundation preview and validated the full web build end-to-end.
+- 2026-04-11: Added `src/router/app-router.tsx` with the PRD section 9 route map (`/login`, `/portal/login`, staff/admin operation routes, org-admin settings routes, and `/portal/rentals*` customer routes), and attached `handle.allowedRoles` metadata for upcoming auth/role guard tasks.
+- 2026-04-11: Updated `src/App.tsx` to mount `RouterProvider`, added `react-router-dom` back to `apps/web` dependencies, and aligned settings link visibility in `Sidebar` to PRD `org_admin only`.
 
 ---
 
@@ -387,9 +389,9 @@
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
 | Phase 4 — Rentals | Complete | 21 / 21 |
 | Phase 5 — Payments | Complete | 5 / 5 |
-| Phase 6 — Frontend | In progress | 18 / 54 |
+| Phase 6 — Frontend | In progress | 19 / 54 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **90 / 133** |
+| **Total** | | **91 / 133** |
 
 ---
 
