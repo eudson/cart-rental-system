@@ -17,6 +17,10 @@ import { RentalDetailPage } from '@/pages/rentals/rental-detail-page';
 import { RentalsListPage } from '@/pages/rentals/rentals-list-page';
 import { PortalRentalDetailPage } from '@/pages/portal/portal-rental-detail-page';
 import { PortalRentalsListPage } from '@/pages/portal/portal-rentals-list-page';
+import { SettingsCartTypesPage } from '@/pages/settings/settings-cart-types-page';
+import { SettingsLocationsPage } from '@/pages/settings/settings-locations-page';
+import { SettingsOrganizationPage } from '@/pages/settings/settings-organization-page';
+import { SettingsUsersPage } from '@/pages/settings/settings-users-page';
 import { useAuthStore } from '@/store/auth-store';
 
 const STAFF_AND_ADMIN_ROLES = [
@@ -183,38 +187,22 @@ const appRouter = createBrowserRouter([
   ),
   buildRoute(
     '/settings/organization',
-    <StaffRoutePage
-      title="Organization Settings"
-      description="Organization-level settings route restricted to org admins."
-      currentPath="/settings/organization"
-    />,
+    <SettingsOrganizationPage />,
     ORG_ADMIN_ROLES,
   ),
   buildRoute(
     '/settings/locations',
-    <StaffRoutePage
-      title="Locations"
-      description="Location management route restricted to org admins."
-      currentPath="/settings/locations"
-    />,
+    <SettingsLocationsPage />,
     ORG_ADMIN_ROLES,
   ),
   buildRoute(
     '/settings/cart-types',
-    <StaffRoutePage
-      title="Cart Types"
-      description="Cart type management route restricted to org admins."
-      currentPath="/settings/cart-types"
-    />,
+    <SettingsCartTypesPage />,
     ORG_ADMIN_ROLES,
   ),
   buildRoute(
     '/settings/users',
-    <StaffRoutePage
-      title="Users"
-      description="User management route restricted to org admins."
-      currentPath="/settings/users"
-    />,
+    <SettingsUsersPage />,
     ORG_ADMIN_ROLES,
   ),
   buildRoute(
