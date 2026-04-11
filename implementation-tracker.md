@@ -175,15 +175,15 @@
 ## Phase 4 — Rentals
 
 **Goal:** Full rental lifecycle working for both daily and lease rentals. Double-booking prevention enforced.
-**Status:** Not started
-**Completed:** —
+**Status:** In progress
+**Completed:** Availability endpoint (`GET /carts/availability`) with overlap filtering and transaction-scoped query execution
 
 ### Tasks
 
 #### Availability
-- [ ] `GET /carts/availability` — availability check endpoint
-- [ ] Overlap query implemented (per PRD section 6)
-- [ ] Query runs inside DB transaction to prevent race conditions
+- [x] `GET /carts/availability` — availability check endpoint
+- [x] Overlap query implemented (per PRD section 6)
+- [x] Query runs inside DB transaction to prevent race conditions
 
 #### Daily Rentals
 - [ ] `POST /rentals` — create daily rental
@@ -211,6 +211,10 @@
 
 ### Notes
 > Add implementation notes, decisions, or issues here as tasks are completed.
+
+- 2026-04-10: Implemented `GET /carts/availability` in the carts module using org-scoped JWT context with validated query params (`startDate`, `endDate`, `locationId`, `type`).
+- 2026-04-10: Availability logic now excludes carts with overlapping `pending`/`active` rentals via the PRD overlap rule (`startDate < endDate` and `endDate > startDate`) while requiring `cart.status = available`.
+- 2026-04-10: Executed overlap lookup and available-cart query inside a single Prisma `$transaction`, and added integration tests for overlap exclusion, location filtering, and invalid date-range rejection.
 
 ---
 
@@ -329,11 +333,11 @@
 | Phase 1 — Foundation | Complete | 9 / 9 |
 | Phase 2 — Auth & Multi-Tenancy | Complete | 13 / 13 |
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
-| Phase 4 — Rentals | Not started | 0 / 18 |
+| Phase 4 — Rentals | In progress | 3 / 18 |
 | Phase 5 — Payments | Not started | 0 / 5 |
 | Phase 6 — Frontend | Not started | 0 / 37 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **45 / 113** |
+| **Total** | | **48 / 113** |
 
 ---
 

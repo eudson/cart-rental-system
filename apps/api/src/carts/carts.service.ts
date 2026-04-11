@@ -1,11 +1,12 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import { CartStatus } from 'shared';
+import { CartStatus, RentalStatus } from 'shared';
 
 import {
   buildPaginationMeta,
@@ -14,6 +15,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { VALID_CART_TRANSITIONS } from './constants/cart-status-transitions.constant';
 import type { CreateCartDto } from './dto/create-cart.dto';
+import type { ListCartAvailabilityQueryDto } from './dto/list-cart-availability-query.dto';
 import type { ListCartsQueryDto } from './dto/list-carts-query.dto';
 import type { UpdateCartDto } from './dto/update-cart.dto';
 
@@ -94,6 +96,58 @@ export class CartsService {
         status: dto.status,
       },
       select: CART_PUBLIC_SELECT,
+    });
+  }
+
+  async listAvailableCarts(
+    organizationId: string,
+    query: ListCartAvailabilityQueryDto,
+  ): Promise<CartPublic[]> {
+    const startDate = new Date(query.startDate);
+    const endDate = new Date(query.endDate);
+
+    if (startDate >= endDate) {
+      throw new BadRequestException({
+        code: 'BAD_REQUEST',
+        message: 'startDate must be before endDate',
+      });
+    }
+
+    this.logger.log(
+      `Availability check initiated — org=${organizationId} type=${query.type} start=${query.startDate} end=${query.endDate} locationId=${query.locationId ?? 'all'}`,
+    );
+
+    return this.prisma.$transaction(async (tx) => {
+      const overlaps = await tx.rental.findMany({
+        where: {
+          organizationId,
+          status: {
+            in: [RentalStatus.pending, RentalStatus.active],
+          },
+          startDate: { lt: endDate },
+          endDate: { gt: startDate },
+          cart: {
+            organizationId,
+            status: CartStatus.available,
+            locationId: query.locationId,
+          },
+        },
+        distinct: ['cartId'],
+        select: { cartId: true },
+      });
+
+      const overlappingCartIds = overlaps.map((rental) => rental.cartId);
+
+      return tx.cart.findMany({
+        where: {
+          organizationId,
+          status: CartStatus.available,
+          locationId: query.locationId,
+          id: overlappingCartIds.length > 0 ? { notIn: overlappingCartIds } : undefined,
+        },
+        orderBy: { label: 'asc' },
+        select: CART_PUBLIC_SELECT,
+      });
     });
   }
 

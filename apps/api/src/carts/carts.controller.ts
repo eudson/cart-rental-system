@@ -24,6 +24,7 @@ import type { StaffRequestUser } from '../common/interfaces/request-user.interfa
 import { withResponseMeta } from '../common/interceptors/response-meta.util';
 import { CartsService } from './carts.service';
 import { CreateCartDto } from './dto/create-cart.dto';
+import { ListCartAvailabilityQueryDto } from './dto/list-cart-availability-query.dto';
 import { ListCartsQueryDto } from './dto/list-carts-query.dto';
 import { UpdateCartDto } from './dto/update-cart.dto';
 
@@ -55,6 +56,16 @@ export class CartsController {
     dto: CreateCartDto,
   ) {
     return this.cartsService.createCart(user.organizationId, dto);
+  }
+
+  @Get('availability')
+  @Roles(UserRole.super_admin, UserRole.org_admin, UserRole.staff)
+  listCartAvailability(
+    @CurrentUser() user: StaffRequestUser,
+    @Query(new ValidationPipe({ whitelist: true, transform: true }))
+    query: ListCartAvailabilityQueryDto,
+  ) {
+    return this.cartsService.listAvailableCarts(user.organizationId, query);
   }
 
   @Get(':id')

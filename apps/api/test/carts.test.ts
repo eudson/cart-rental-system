@@ -33,6 +33,11 @@ let primaryLocationBId: string;
 let primaryCartTypeAId: string;
 let primaryCartTypeBId: string;
 let otherOrgCartId: string;
+let overlapCartId: string;
+let nonOverlapCartId: string;
+
+const AVAILABILITY_WINDOW_START = '2026-05-10T00:00:00.000Z';
+const AVAILABILITY_WINDOW_END = '2026-05-12T00:00:00.000Z';
 
 before(async () => {
   process.env['DATABASE_URL'] = process.env['DATABASE_URL'] ?? DEFAULT_DATABASE_URL;
@@ -145,6 +150,73 @@ before(async () => {
       cartTypeId: cartTypeB.id,
       label: 'Cart-200',
       status: 'reserved',
+    },
+  });
+
+  const overlapCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrg.id,
+      locationId: primaryLocationA.id,
+      cartTypeId: cartTypeA.id,
+      label: 'Cart-300',
+      status: 'available',
+    },
+  });
+  overlapCartId = overlapCart.id;
+
+  const nonOverlapCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrg.id,
+      locationId: primaryLocationB.id,
+      cartTypeId: cartTypeA.id,
+      label: 'Cart-400',
+      status: 'available',
+    },
+  });
+  nonOverlapCartId = nonOverlapCart.id;
+
+  const rentalCustomer = await prisma.customer.create({
+    data: {
+      organizationId: primaryOrg.id,
+      name: 'Availability Customer',
+      email: 'availability.customer@test-carts-phase3.com',
+      passwordHash,
+    },
+  });
+  const createdBy = await prisma.user.findFirst({
+    where: {
+      organizationId: primaryOrg.id,
+      email: ORG_ADMIN_EMAIL,
+    },
+    select: { id: true },
+  });
+  assert.ok(createdBy?.id);
+
+  await prisma.rental.create({
+    data: {
+      organizationId: primaryOrg.id,
+      locationId: primaryLocationA.id,
+      customerId: rentalCustomer.id,
+      cartId: overlapCart.id,
+      createdById: createdBy.id,
+      type: 'daily',
+      status: 'pending',
+      startDate: new Date('2026-05-10T10:00:00.000Z'),
+      endDate: new Date('2026-05-12T10:00:00.000Z'),
+    },
+  });
+
+  await prisma.rental.create({
+    data: {
+      organizationId: primaryOrg.id,
+      locationId: primaryLocationB.id,
+      customerId: rentalCustomer.id,
+      cartId: nonOverlapCart.id,
+      createdById: createdBy.id,
+      type: 'daily',
+      status: 'active',
+      startDate: new Date('2026-05-01T10:00:00.000Z'),
+      endDate: new Date('2026-05-03T10:00:00.000Z'),
     },
   });
 
@@ -263,6 +335,71 @@ test('GET /carts — staff can list carts with filters and pagination metadata',
   assert.equal(body.data[0]?.status, 'available');
   assert.equal(body.meta.pagination.totalItems, 1);
   assert.equal(body.meta.pagination.search, 'Cart-100');
+});
+
+test('GET /carts/availability — returns only carts that are available with no overlap', async () => {
+  const staffToken = await loginAs(STAFF_EMAIL);
+
+  const res = await fetch(
+    `${baseUrl}/carts/availability?startDate=${encodeURIComponent(AVAILABILITY_WINDOW_START)}&endDate=${encodeURIComponent(AVAILABILITY_WINDOW_END)}&type=daily`,
+    {
+      headers: { Authorization: `Bearer ${staffToken}` },
+    },
+  );
+  assert.equal(res.status, 200);
+
+  const body = (await res.json()) as {
+    data: Array<{ id: string; label: string }>;
+  };
+  const labels = body.data.map((cart) => cart.label);
+  const cartIds = body.data.map((cart) => cart.id);
+
+  assert.ok(labels.includes('Cart-100'));
+  assert.ok(labels.includes('Cart-400'));
+  assert.ok(!labels.includes('Cart-200'));
+  assert.ok(!labels.includes('Cart-300'));
+  assert.ok(!labels.includes('Hidden Cart'));
+  assert.ok(cartIds.includes(nonOverlapCartId));
+  assert.ok(!cartIds.includes(overlapCartId));
+});
+
+test('GET /carts/availability — locationId filter scopes result set', async () => {
+  const staffToken = await loginAs(STAFF_EMAIL);
+
+  const res = await fetch(
+    `${baseUrl}/carts/availability?startDate=${encodeURIComponent(AVAILABILITY_WINDOW_START)}&endDate=${encodeURIComponent(AVAILABILITY_WINDOW_END)}&locationId=${primaryLocationAId}&type=daily`,
+    {
+      headers: { Authorization: `Bearer ${staffToken}` },
+    },
+  );
+  assert.equal(res.status, 200);
+
+  const body = (await res.json()) as {
+    data: Array<{ id: string; label: string; locationId: string }>;
+  };
+  const labels = body.data.map((cart) => cart.label);
+
+  assert.ok(labels.includes('Cart-100'));
+  assert.ok(!labels.includes('Cart-400'));
+  assert.ok(!labels.includes('Cart-300'));
+  for (const cart of body.data) {
+    assert.equal(cart.locationId, primaryLocationAId);
+  }
+});
+
+test('GET /carts/availability — startDate must be before endDate', async () => {
+  const staffToken = await loginAs(STAFF_EMAIL);
+
+  const res = await fetch(
+    `${baseUrl}/carts/availability?startDate=${encodeURIComponent(AVAILABILITY_WINDOW_END)}&endDate=${encodeURIComponent(AVAILABILITY_WINDOW_START)}&type=daily`,
+    {
+      headers: { Authorization: `Bearer ${staffToken}` },
+    },
+  );
+
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'BAD_REQUEST');
 });
 
 test('POST /carts — staff role returns 403', async () => {
