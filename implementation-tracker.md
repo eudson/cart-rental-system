@@ -259,7 +259,7 @@
 
 **Goal:** Fully functional web app for staff/admin operations and customer read-only portal.
 **Status:** In progress
-**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`
+**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError
 
 ### Tasks
 
@@ -273,13 +273,13 @@
 - [x] Install Inter font via `@fontsource/inter`
 - [x] Configure Tailwind typography scale (per `DESIGN.md` section 3)
 - [x] Document token shape in `packages/shared` for Phase 2 runtime theming
-- [ ] Build `AppLayout` component (sidebar + main content area)
-- [ ] Build `Sidebar` component (logo slot, role-aware nav links, org name, user/logout)
-- [ ] Build `TopBar` component (page title, contextual action slot, user menu)
-- [ ] Build `PageWrapper` component (consistent padding, heading slot)
-- [ ] Build `StatusBadge` component (cart, rental, payment status → color map per `DESIGN.md` section 5)
-- [ ] Build `EmptyState` component (icon + heading + subtext + optional CTA)
-- [ ] Build `PageError` component (inline error card + retry button)
+- [x] Build `AppLayout` component (sidebar + main content area)
+- [x] Build `Sidebar` component (logo slot, role-aware nav links, org name, user/logout)
+- [x] Build `TopBar` component (page title, contextual action slot, user menu)
+- [x] Build `PageWrapper` component (consistent padding, heading slot)
+- [x] Build `StatusBadge` component (cart, rental, payment status → color map per `DESIGN.md` section 5)
+- [x] Build `EmptyState` component (icon + heading + subtext + optional CTA)
+- [x] Build `PageError` component (inline error card + retry button)
 - [x] Add `DESIGN.md` to `apps/web/` root
 
 #### App Foundation
@@ -352,6 +352,9 @@
 - 2026-04-11: Updated `components.json` aliases to `src/*` paths after initial CLI generation emitted components to an incorrect literal `@/` directory; moved generated files into `src/components/ui`.
 - 2026-04-11: Validation: `pnpm --filter web build` passes; Vite dev server boots successfully via `pnpm --filter web dev`.
 - 2026-04-11: Added shared Phase 2 runtime theming contract in `packages/shared/src/types/theme.types.ts`, including canonical overridable CSS variable names (`primary`, `secondary`, `accent` pairs) and exported token map typing for API/web reuse.
+- 2026-04-11: Added reusable layout shell components (`AppLayout`, `Sidebar`, `TopBar`, `PageWrapper`) aligned to `DESIGN.md` dimensions and spacing rules, including role-aware sidebar navigation and a user/logout menu surface.
+- 2026-04-11: Added shared UI state primitives (`StatusBadge`, `EmptyState`, `PageError`) with status-to-token mapping across cart/rental/payment flows and optional CTA/retry hooks for page-level integration.
+- 2026-04-11: Updated `src/App.tsx` to render the new shell/components as a working foundation preview and validated the full web build end-to-end.
 
 ---
 
@@ -384,9 +387,9 @@
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
 | Phase 4 — Rentals | Complete | 21 / 21 |
 | Phase 5 — Payments | Complete | 5 / 5 |
-| Phase 6 — Frontend | In progress | 11 / 54 |
+| Phase 6 — Frontend | In progress | 18 / 54 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **83 / 133** |
+| **Total** | | **90 / 133** |
 
 ---
 
