@@ -1,6 +1,7 @@
 import type {
   CreateRentalRequestDto,
   CreateRentalPaymentRequestDto,
+  LeaseContract,
   Payment,
   PaginationMeta,
   Rental,
@@ -62,4 +63,20 @@ export async function createRentalPayment(
     method: 'POST',
     body: dto,
   });
+}
+
+export async function checkoutRental(rentalId: string): Promise<Rental> {
+  return apiRequest<Rental>(`/rentals/${rentalId}/checkout`, { method: 'POST' });
+}
+
+export async function checkinRental(rentalId: string): Promise<Rental> {
+  return apiRequest<Rental>(`/rentals/${rentalId}/checkin`, { method: 'POST' });
+}
+
+export async function cancelRental(rentalId: string): Promise<Rental> {
+  return apiRequest<Rental>(`/rentals/${rentalId}/cancel`, { method: 'POST' });
+}
+
+export async function getRentalContract(rentalId: string): Promise<LeaseContract> {
+  return apiRequest<LeaseContract>(`/rentals/${rentalId}/contract`);
 }

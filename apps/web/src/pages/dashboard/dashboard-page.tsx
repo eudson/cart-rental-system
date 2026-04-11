@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, CalendarClock, CalendarSync, CarFront, CreditCard, MapPinned, Tag } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import type { DashboardActionItem, DashboardCapacityItem } from 'shared';
 
 import { EmptyState } from '@/components/common/empty-state';
@@ -45,12 +46,14 @@ function MetricCard({
 function ActionQueueCard({
   title,
   count,
+  viewAllHref,
   items,
   emptyHeading,
   emptySubtext,
 }: {
   title: string;
   count: number;
+  viewAllHref: string;
   items: DashboardActionItem[];
   emptyHeading: string;
   emptySubtext: string;
@@ -60,7 +63,12 @@ function ActionQueueCard({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="text-lg font-medium">{title}</CardTitle>
-          <span className="text-sm text-muted-foreground">{count} total</span>
+          <Link
+            to={viewAllHref}
+            className="text-xs font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          >
+            {count} total — View all
+          </Link>
         </div>
       </CardHeader>
       <CardContent>
@@ -73,9 +81,10 @@ function ActionQueueCard({
         ) : (
           <div className="space-y-3">
             {items.map((item) => (
-              <div
+              <Link
                 key={item.rentalId}
-                className="rounded-lg border border-border bg-[var(--color-background-subtle)] p-4"
+                to={`/rentals/${item.rentalId}`}
+                className="block rounded-lg border border-border bg-[var(--color-background-subtle)] p-4 transition-colors hover:border-border-strong hover:bg-[var(--color-background-muted)]"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -92,7 +101,7 @@ function ActionQueueCard({
                   <p>End: {formatDate(item.endDate)}</p>
                 </div>
                 <p className="mt-2 text-sm text-foreground">Amount: {formatCurrency(item.totalAmount)}</p>
-              </div>
+              </Link>
             ))}
           </div>
         )}
@@ -280,6 +289,7 @@ export function DashboardPage() {
             <ActionQueueCard
               title="Check-outs Today"
               count={dashboardQuery.data.actionQueue.checkoutsTodayCount}
+              viewAllHref="/rentals?status=pending"
               items={dashboardQuery.data.actionQueue.checkoutsToday}
               emptyHeading="No check-outs scheduled"
               emptySubtext="Nothing is queued to start today."
@@ -287,6 +297,7 @@ export function DashboardPage() {
             <ActionQueueCard
               title="Check-ins Today"
               count={dashboardQuery.data.actionQueue.checkinsTodayCount}
+              viewAllHref="/rentals?status=active"
               items={dashboardQuery.data.actionQueue.checkinsToday}
               emptyHeading="No check-ins due"
               emptySubtext="There are no active rentals ending today."
@@ -294,6 +305,7 @@ export function DashboardPage() {
             <ActionQueueCard
               title="Overdue Returns"
               count={dashboardQuery.data.actionQueue.overdueReturnsCount}
+              viewAllHref="/rentals?status=active"
               items={dashboardQuery.data.actionQueue.overdueReturns}
               emptyHeading="No overdue returns"
               emptySubtext="All active rentals are still inside their expected return window."

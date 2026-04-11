@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Search } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { RentalStatus, RentalType } from 'shared';
 
 import { EmptyState } from '@/components/common/empty-state';
@@ -29,12 +29,15 @@ function toEndOfDayIso(value: string): string {
 }
 
 export function RentalsListPage() {
+  const [searchParams] = useSearchParams();
+  const initialStatus = (searchParams.get('status') as RentalStatusFilter | null) ?? 'all';
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [searchInput, setSearchInput] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<RentalTypeFilter>('all');
-  const [statusFilter, setStatusFilter] = useState<RentalStatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<RentalStatusFilter>(initialStatus);
   const [startDateFrom, setStartDateFrom] = useState('');
   const [endDateTo, setEndDateTo] = useState('');
 

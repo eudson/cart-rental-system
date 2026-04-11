@@ -3,7 +3,7 @@
 **Project:** Golf Cart Rental Management System
 **PRD Version:** 1.0
 **Last Updated:** 2026-04-11
-**Updated By:** PM / Architect
+**Updated By:** Architect
 
 ---
 
@@ -319,10 +319,10 @@
   - [x] Step 2 — Availability check (date/type input → available carts returned)
   - [x] Step 3 — Select cart
   - [x] Step 4 — Confirm + create rental
-- [ ] Rental detail page (status, contract if lease, payments)
-- [ ] Check-out confirmation screen
-- [ ] Check-in confirmation screen (shows calculated total)
-- [ ] Cancel rental action
+- [x] Rental detail page (status, contract if lease, payments)
+- [x] Check-out confirmation screen
+- [x] Check-in confirmation screen (shows calculated total)
+- [x] Cancel rental action
 
 #### Payments
 - [x] Payment recording form (per rental)
@@ -384,6 +384,13 @@
 - 2026-04-11: Expanded the rentals API contract used by the frontend so list responses include customer/cart/location summaries and support overlap-style date filtering (`startDateFrom`, `endDateTo`) without requiring multiple client-side lookup requests.
 - 2026-04-11: Validation: `pnpm --filter api build`, `node --test apps/api/dist/test/rentals.test.js`, and `pnpm --filter web build` all pass. Vite still reports the existing chunk-size warning for the main bundle; no functional build failure.
 - 2026-04-11: Fixed app-shell scrolling so long pages scroll within the main content pane only; sidebar and top bar now remain fixed instead of moving with document scroll.
+- 2026-04-11: Rebuilt `/rentals/:id` (rental detail page) to include customer/cart/location summary, lifecycle action buttons (Checkout → `/rentals/:id/checkout`, Check-in → `/rentals/:id/checkin`, Cancel AlertDialog for pending rentals), and conditional lease contract section fetched from `GET /rentals/:id/contract`. Payment recording form and list preserved. Payment form hidden on cancelled rentals.
+- 2026-04-11: Implemented `/rentals/:id/checkout` (checkout confirmation page) — shows rental summary and a single "Confirm Checkout" button that calls `POST /rentals/:id/checkout`, invalidates queries, and navigates back to detail.
+- 2026-04-11: Implemented `/rentals/:id/checkin` (check-in confirmation page) — shows expected total and a banner explaining that actual return time will be recorded as now; confirms via `POST /rentals/:id/checkin` and navigates back to detail.
+- 2026-04-11: Cancel rental is an AlertDialog on the detail page (not a separate route); calls `POST /rentals/:id/cancel`, only available for `pending` rentals per API state machine.
+- 2026-04-11: Added service functions `checkoutRental`, `checkinRental`, `cancelRental`, `getRentalContract` to `apps/web/src/services/rentals-service.ts`.
+- 2026-04-11: Added drill-down links to dashboard action queue: each action item card now links to `/rentals/:rentalId`; each ActionQueueCard header links to a pre-filtered rentals list (`/rentals?status=pending` for check-outs, `/rentals?status=active` for check-ins and overdue). Rentals list page now reads initial status filter from `?status=` URL param.
+- 2026-04-11: Validation: `pnpm --filter web build` passes (1929 modules, 0 errors).
 
 ---
 

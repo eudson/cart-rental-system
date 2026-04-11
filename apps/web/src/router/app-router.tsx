@@ -11,6 +11,8 @@ import { CustomerDetailPage } from '@/pages/customers/customer-detail-page';
 import { CustomersListPage } from '@/pages/customers/customers-list-page';
 import { DashboardPage } from '@/pages/dashboard/dashboard-page';
 import { NewRentalPage } from '@/pages/rentals/new-rental-page';
+import { RentalCheckinPage } from '@/pages/rentals/rental-checkin-page';
+import { RentalCheckoutPage } from '@/pages/rentals/rental-checkout-page';
 import { RentalDetailPage } from '@/pages/rentals/rental-detail-page';
 import { RentalsListPage } from '@/pages/rentals/rentals-list-page';
 import { useAuthStore } from '@/store/auth-store';
@@ -183,20 +185,12 @@ const appRouter = createBrowserRouter([
   ),
   buildRoute(
     '/rentals/:id/checkout',
-    <StaffRoutePage
-      title="Rental Checkout"
-      description="Checkout confirmation screen route."
-      currentPath="/rentals"
-    />,
+    <RentalCheckoutPage />,
     STAFF_AND_ADMIN_ROLES,
   ),
   buildRoute(
     '/rentals/:id/checkin',
-    <StaffRoutePage
-      title="Rental Check-in"
-      description="Check-in confirmation route with final amount presentation."
-      currentPath="/rentals"
-    />,
+    <RentalCheckinPage />,
     STAFF_AND_ADMIN_ROLES,
   ),
   buildRoute(
