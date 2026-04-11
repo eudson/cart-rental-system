@@ -259,7 +259,7 @@
 
 **Goal:** Fully functional web app for staff/admin operations and customer read-only portal.
 **Status:** In progress
-**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata
+**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata, Zustand auth store baseline with current user/org state
 
 ### Tasks
 
@@ -285,7 +285,7 @@
 #### App Foundation
 - [x] Vite + React + TypeScript app scaffold
 - [x] React Router configured (role-based routing per PRD section 9)
-- [ ] Zustand store (auth state, current user/org)
+- [x] Zustand store (auth state, current user/org)
 - [ ] TanStack Query configured (API client, caching)
 - [ ] API service layer (typed, uses shared DTOs)
 - [ ] Auth route guard (redirect if not authenticated)
@@ -357,6 +357,8 @@
 - 2026-04-11: Updated `src/App.tsx` to render the new shell/components as a working foundation preview and validated the full web build end-to-end.
 - 2026-04-11: Added `src/router/app-router.tsx` with the PRD section 9 route map (`/login`, `/portal/login`, staff/admin operation routes, org-admin settings routes, and `/portal/rentals*` customer routes), and attached `handle.allowedRoles` metadata for upcoming auth/role guard tasks.
 - 2026-04-11: Updated `src/App.tsx` to mount `RouterProvider`, added `react-router-dom` back to `apps/web` dependencies, and aligned settings link visibility in `Sidebar` to PRD `org_admin only`.
+- 2026-04-11: Added `src/store/auth-store.ts` using Zustand to centralize auth/session state, including `isAuthenticated`, token fields, session type (`staff`/`customer`), `currentOrganization`, `currentUser`, and `currentCustomer`.
+- 2026-04-11: Added explicit session actions (`setStaffSession`, `setCustomerSession`, `setAccessToken`, `setRefreshToken`, `setCurrentOrganization`, `clearAuthState`) and wired router scaffold pages to consume current user/org/customer values from the store with safe fallbacks.
 
 ---
 
@@ -389,9 +391,9 @@
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
 | Phase 4 — Rentals | Complete | 21 / 21 |
 | Phase 5 — Payments | Complete | 5 / 5 |
-| Phase 6 — Frontend | In progress | 19 / 54 |
+| Phase 6 — Frontend | In progress | 20 / 54 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **91 / 133** |
+| **Total** | | **92 / 133** |
 
 ---
 

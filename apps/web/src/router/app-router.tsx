@@ -4,6 +4,7 @@ import { UserRole } from 'shared';
 import { EmptyState } from '@/components/common/empty-state';
 import { AppLayout } from '@/components/layout/app-layout';
 import { PageWrapper } from '@/components/layout/page-wrapper';
+import { useAuthStore } from '@/store/auth-store';
 
 const STAFF_AND_ADMIN_ROLES = [
   UserRole.staff,
@@ -37,13 +38,16 @@ function AuthRoutePage({ title, description }: Omit<AppScaffoldPageProps, 'curre
 }
 
 function StaffRoutePage({ title, description, currentPath }: AppScaffoldPageProps) {
+  const currentOrganization = useAuthStore((state) => state.currentOrganization);
+  const currentUser = useAuthStore((state) => state.currentUser);
+
   return (
     <AppLayout
       pageTitle={title}
       currentPath={currentPath}
-      orgName="Demo Golf Carts"
-      userName="Alex Johnson"
-      userRole={UserRole.org_admin}
+      orgName={currentOrganization?.name ?? 'Demo Golf Carts'}
+      userName={currentUser?.name ?? 'Alex Johnson'}
+      userRole={currentUser?.role ?? UserRole.org_admin}
     >
       <PageWrapper title={title} subtitle={description}>
         <EmptyState
@@ -56,9 +60,19 @@ function StaffRoutePage({ title, description, currentPath }: AppScaffoldPageProp
 }
 
 function PortalRoutePage({ title, description }: Omit<AppScaffoldPageProps, 'currentPath'>) {
+  const currentCustomer = useAuthStore((state) => state.currentCustomer);
+  const currentOrganization = useAuthStore((state) => state.currentOrganization);
+
   return (
     <div className="min-h-screen bg-[var(--color-background-subtle)] px-6 py-8">
-      <PageWrapper title={title} subtitle={description}>
+      <PageWrapper
+        title={title}
+        subtitle={
+          currentCustomer && currentOrganization
+            ? `${description} Signed in as ${currentCustomer.name} (${currentOrganization.name}).`
+            : description
+        }
+      >
         <EmptyState
           heading={`${title} route is wired`}
           subtext="Customer portal routing is configured; read-only page implementation follows in later Phase 6 tasks."
