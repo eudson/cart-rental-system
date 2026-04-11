@@ -2,7 +2,7 @@
 
 **Project:** Golf Cart Rental Management System
 **PRD Version:** 1.0
-**Last Updated:** 2026-04-10
+**Last Updated:** 2026-04-11
 **Updated By:** Codex
 
 ---
@@ -230,18 +230,24 @@
 ## Phase 5 — Payments
 
 **Goal:** Manual payment recording per rental. No gateway integration.
-**Status:** Not started
-**Completed:** —
+**Status:** Complete
+**Completed:** Payments endpoints (`GET /rentals/:id/payments`, `POST /rentals/:id/payments`, `PATCH /rentals/:id/payments/:pid`), payment status tracking (`unpaid`, `partial`, `paid`, `refunded`), recorded-by attribution from authenticated staff/admin JWT
 
 ### Tasks
-- [ ] `GET /rentals/:id/payments` — list payments for rental
-- [ ] `POST /rentals/:id/payments` — record payment (amount, method, status, paid_at)
-- [ ] `PATCH /rentals/:id/payments/:pid` — update payment record
-- [ ] Payment status tracking (`unpaid`, `partial`, `paid`, `refunded`)
-- [ ] `recordedById` set from JWT (staff user)
+- [x] `GET /rentals/:id/payments` — list payments for rental
+- [x] `POST /rentals/:id/payments` — record payment (amount, method, status, paid_at)
+- [x] `PATCH /rentals/:id/payments/:pid` — update payment record
+- [x] Payment status tracking (`unpaid`, `partial`, `paid`, `refunded`)
+- [x] `recordedById` set from JWT (staff user)
 
 ### Notes
 > Add implementation notes, decisions, or issues here as tasks are completed.
+
+- 2026-04-11: Extended `RentalsController` and `RentalsService` with nested payments endpoints for list/create/update, protected by existing staff/admin guard stack and strict tenant scoping (`organizationId` from JWT only).
+- 2026-04-11: Added payment DTO validation for amount/method/status/paid date and ensured `recordedById` is always populated from authenticated JWT claims (`CurrentUser.userId`) instead of request input.
+- 2026-04-11: Implemented list pagination/search metadata for `GET /rentals/:id/payments` using shared pagination utilities and response meta helpers; search is case-insensitive across `notes`, recorder name, and enum terms.
+- 2026-04-11: Added rentals integration coverage for payment create/list/update flows, status lifecycle values (`unpaid`, `partial`, `paid`, `refunded`), and cross-org rental rejection.
+- 2026-04-11: Updated rentals test cleanup to remove legacy rows safely by both organization and customer linkage, preventing FK failures during repeated local runs.
 
 ---
 
@@ -343,10 +349,10 @@
 | Phase 2 — Auth & Multi-Tenancy | Complete | 13 / 13 |
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
 | Phase 4 — Rentals | Complete | 21 / 21 |
-| Phase 5 — Payments | Not started | 0 / 5 |
+| Phase 5 — Payments | Complete | 5 / 5 |
 | Phase 6 — Frontend | Not started | 0 / 37 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **67 / 116** |
+| **Total** | | **72 / 116** |
 
 ---
 

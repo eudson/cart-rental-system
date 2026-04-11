@@ -32,10 +32,12 @@ let primaryLocationId: string;
 let primaryCustomerId: string;
 let primaryCartTypeId: string;
 let primaryStaffUserId: string;
+let primaryOrgAdminUserId: string;
 let primaryAvailableCartId: string;
 let primaryUnavailableCartId: string;
 let primaryOverlapCartId: string;
 let primaryLeaseCartId: string;
+let otherOrgStaffUserId: string;
 
 let otherOrgCustomerId: string;
 
@@ -95,6 +97,16 @@ before(async () => {
   });
   assert.ok(createdBy?.id);
   primaryStaffUserId = createdBy.id;
+
+  const orgAdmin = await prisma.user.findFirst({
+    where: {
+      organizationId: primaryOrg.id,
+      email: ORG_ADMIN_EMAIL,
+    },
+    select: { id: true },
+  });
+  assert.ok(orgAdmin?.id);
+  primaryOrgAdminUserId = orgAdmin.id;
 
   const primaryLocation = await prisma.location.create({
     data: {
@@ -226,6 +238,18 @@ before(async () => {
       status: 'available',
     },
   });
+
+  const otherOrgStaff = await prisma.user.create({
+    data: {
+      organizationId: otherOrg.id,
+      name: 'Other Org Staff',
+      email: 'staff@test-rentals-phase4-other.com',
+      passwordHash,
+      role: 'staff',
+    },
+    select: { id: true },
+  });
+  otherOrgStaffUserId = otherOrgStaff.id;
 });
 
 after(async () => {
@@ -250,12 +274,37 @@ async function cleanupTestData(db: PrismaService): Promise<void> {
   }
 
   const organizationIds = organizations.map((organization) => organization.id);
+  const customers = await db.customer.findMany({
+    where: { organizationId: { in: organizationIds } },
+    select: { id: true },
+  });
+  const customerIds = customers.map((customer) => customer.id);
+  const leaseContractDeleteConditions: Array<{
+    rental: { organizationId?: { in: string[] }; customerId?: { in: string[] } };
+  }> = [{ rental: { organizationId: { in: organizationIds } } }];
+  const rentalDeleteConditions: Array<{
+    organizationId?: { in: string[] };
+    customerId?: { in: string[] };
+  }> = [{ organizationId: { in: organizationIds } }];
+
+  if (customerIds.length > 0) {
+    leaseContractDeleteConditions.push({
+      rental: { customerId: { in: customerIds } },
+    });
+    rentalDeleteConditions.push({ customerId: { in: customerIds } });
+  }
 
   await db.payment.deleteMany({ where: { organizationId: { in: organizationIds } } });
   await db.leaseContract.deleteMany({
-    where: { rental: { organizationId: { in: organizationIds } } },
+    where: {
+      OR: leaseContractDeleteConditions,
+    },
   });
-  await db.rental.deleteMany({ where: { organizationId: { in: organizationIds } } });
+  await db.rental.deleteMany({
+    where: {
+      OR: rentalDeleteConditions,
+    },
+  });
   await db.cart.deleteMany({ where: { organizationId: { in: organizationIds } } });
   await db.user.updateMany({
     where: { organizationId: { in: organizationIds } },
@@ -1024,4 +1073,303 @@ test('PATCH /rentals/:id — active rental date update returns INVALID_STATUS_TR
   assert.equal(response.status, 422);
   const body = (await response.json()) as { error: { code: string } };
   assert.equal(body.error.code, 'INVALID_STATUS_TRANSITION');
+});
+
+test('POST /rentals/:id/payments — records payment with recordedById from JWT', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+
+  const actionCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      cartTypeId: primaryCartTypeId,
+      label: nextActionLabel('ACTION-PAYMENT-CREATE-CART'),
+      status: 'reserved',
+    },
+  });
+
+  const rental = await prisma.rental.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      customerId: primaryCustomerId,
+      cartId: actionCart.id,
+      createdById: primaryStaffUserId,
+      type: 'daily',
+      status: 'pending',
+      startDate: new Date('2026-11-01T00:00:00.000Z'),
+      endDate: new Date('2026-11-03T00:00:00.000Z'),
+      dailyRateSnapshot: 75,
+      totalAmount: 150,
+    },
+  });
+
+  const response = await fetch(`${baseUrl}/rentals/${rental.id}/payments`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      amount: 100,
+      method: 'card',
+      status: 'partial',
+      paidAt: '2026-11-01T09:15:00.000Z',
+      notes: 'deposit payment',
+    }),
+  });
+
+  assert.equal(response.status, 201);
+  const body = (await response.json()) as {
+    data: {
+      id: string;
+      rentalId: string;
+      organizationId: string;
+      recordedById: string;
+      amount: string;
+      method: string;
+      status: string;
+      paidAt: string | null;
+      notes: string | null;
+    };
+  };
+
+  assert.ok(body.data.id);
+  assert.equal(body.data.rentalId, rental.id);
+  assert.equal(body.data.organizationId, primaryOrgId);
+  assert.equal(body.data.recordedById, primaryStaffUserId);
+  assert.equal(body.data.amount, '100');
+  assert.equal(body.data.method, 'card');
+  assert.equal(body.data.status, 'partial');
+  assert.equal(body.data.paidAt, '2026-11-01T09:15:00.000Z');
+  assert.equal(body.data.notes, 'deposit payment');
+
+  const createdPayment = await prisma.payment.findUnique({
+    where: { id: body.data.id },
+    select: {
+      id: true,
+      recordedById: true,
+    },
+  });
+  assert.equal(createdPayment?.id, body.data.id);
+  assert.equal(createdPayment?.recordedById, primaryStaffUserId);
+});
+
+test('GET /rentals/:id/payments — lists rental payments with pagination metadata', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+
+  const actionCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      cartTypeId: primaryCartTypeId,
+      label: nextActionLabel('ACTION-PAYMENT-LIST-CART'),
+      status: 'reserved',
+    },
+  });
+
+  const rental = await prisma.rental.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      customerId: primaryCustomerId,
+      cartId: actionCart.id,
+      createdById: primaryStaffUserId,
+      type: 'daily',
+      status: 'pending',
+      startDate: new Date('2026-11-03T00:00:00.000Z'),
+      endDate: new Date('2026-11-05T00:00:00.000Z'),
+      dailyRateSnapshot: 75,
+      totalAmount: 150,
+    },
+  });
+
+  await prisma.payment.createMany({
+    data: [
+      {
+        rentalId: rental.id,
+        organizationId: primaryOrgId,
+        recordedById: primaryStaffUserId,
+        amount: 30,
+        method: 'cash',
+        status: 'unpaid',
+        notes: 'initial draft',
+      },
+      {
+        rentalId: rental.id,
+        organizationId: primaryOrgId,
+        recordedById: primaryOrgAdminUserId,
+        amount: 70,
+        method: 'bank_transfer',
+        status: 'paid',
+        notes: 'final settlement marker',
+      },
+    ],
+  });
+
+  const response = await fetch(
+    `${baseUrl}/rentals/${rental.id}/payments?page=1&pageSize=1&search=settlement`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as {
+    data: Array<{ status: string; notes: string | null }>;
+    meta: {
+      pagination: {
+        page: number;
+        pageSize: number;
+        totalItems: number;
+        totalPages: number;
+        search: string | null;
+      };
+    };
+  };
+
+  assert.equal(body.data.length, 1);
+  assert.equal(body.data[0]?.status, 'paid');
+  assert.equal(body.data[0]?.notes, 'final settlement marker');
+  assert.equal(body.meta.pagination.page, 1);
+  assert.equal(body.meta.pagination.pageSize, 1);
+  assert.equal(body.meta.pagination.totalItems, 1);
+  assert.equal(body.meta.pagination.totalPages, 1);
+  assert.equal(body.meta.pagination.search, 'settlement');
+});
+
+test('PATCH /rentals/:id/payments/:pid — updates payment record fields and status', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+
+  const actionCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      cartTypeId: primaryCartTypeId,
+      label: nextActionLabel('ACTION-PAYMENT-PATCH-CART'),
+      status: 'reserved',
+    },
+  });
+
+  const rental = await prisma.rental.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      customerId: primaryCustomerId,
+      cartId: actionCart.id,
+      createdById: primaryStaffUserId,
+      type: 'daily',
+      status: 'pending',
+      startDate: new Date('2026-11-06T00:00:00.000Z'),
+      endDate: new Date('2026-11-08T00:00:00.000Z'),
+      dailyRateSnapshot: 75,
+      totalAmount: 150,
+    },
+  });
+
+  const payment = await prisma.payment.create({
+    data: {
+      rentalId: rental.id,
+      organizationId: primaryOrgId,
+      recordedById: primaryStaffUserId,
+      amount: 40,
+      method: 'cash',
+      status: 'unpaid',
+      notes: 'unconfirmed',
+    },
+    select: { id: true },
+  });
+
+  const response = await fetch(`${baseUrl}/rentals/${rental.id}/payments/${payment.id}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      amount: 150,
+      method: 'bank_transfer',
+      status: 'refunded',
+      paidAt: '2026-11-08T11:00:00.000Z',
+      notes: 'refunded after cancellation',
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as {
+    data: {
+      id: string;
+      amount: string;
+      method: string;
+      status: string;
+      paidAt: string | null;
+      notes: string | null;
+    };
+  };
+  assert.equal(body.data.id, payment.id);
+  assert.equal(body.data.amount, '150');
+  assert.equal(body.data.method, 'bank_transfer');
+  assert.equal(body.data.status, 'refunded');
+  assert.equal(body.data.paidAt, '2026-11-08T11:00:00.000Z');
+  assert.equal(body.data.notes, 'refunded after cancellation');
+});
+
+test('POST /rentals/:id/payments — rental from another organization returns 404', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+
+  const otherOrgLocation = await prisma.location.findFirstOrThrow({
+    where: { organizationId: { not: primaryOrgId } },
+    select: { id: true, organizationId: true },
+  });
+  const otherOrgCartType = await prisma.cartType.findFirstOrThrow({
+    where: { organizationId: otherOrgLocation.organizationId },
+    select: { id: true },
+  });
+  const otherOrgCart = await prisma.cart.create({
+    data: {
+      organizationId: otherOrgLocation.organizationId,
+      locationId: otherOrgLocation.id,
+      cartTypeId: otherOrgCartType.id,
+      label: nextActionLabel('ACTION-PAYMENT-OTHER-ORG-CART'),
+      status: 'reserved',
+    },
+    select: { id: true },
+  });
+
+  const otherOrgRental = await prisma.rental.create({
+    data: {
+      organizationId: otherOrgLocation.organizationId,
+      locationId: otherOrgLocation.id,
+      customerId: otherOrgCustomerId,
+      cartId: otherOrgCart.id,
+      createdById: otherOrgStaffUserId,
+      type: 'daily',
+      status: 'pending',
+      startDate: new Date('2026-11-09T00:00:00.000Z'),
+      endDate: new Date('2026-11-11T00:00:00.000Z'),
+      dailyRateSnapshot: 65,
+      totalAmount: 130,
+    },
+    select: { id: true },
+  });
+
+  const response = await fetch(`${baseUrl}/rentals/${otherOrgRental.id}/payments`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      amount: 65,
+      method: 'cash',
+      status: 'paid',
+      paidAt: '2026-11-10T08:00:00.000Z',
+    }),
+  });
+
+  assert.equal(response.status, 404);
+  const body = (await response.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'NOT_FOUND');
 });

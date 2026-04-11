@@ -22,9 +22,12 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import type { StaffRequestUser } from '../common/interfaces/request-user.interface';
 import { withResponseMeta } from '../common/interceptors/response-meta.util';
 import { CreateLeaseContractDto } from './dto/create-lease-contract.dto';
+import { CreateRentalPaymentDto } from './dto/create-rental-payment.dto';
 import { CreateRentalDto } from './dto/create-rental.dto';
+import { ListRentalPaymentsQueryDto } from './dto/list-rental-payments-query.dto';
 import { ListRentalsQueryDto } from './dto/list-rentals-query.dto';
 import { UpdateLeaseContractDto } from './dto/update-lease-contract.dto';
+import { UpdateRentalPaymentDto } from './dto/update-rental-payment.dto';
 import { UpdateRentalDto } from './dto/update-rental.dto';
 import { RentalsService } from './rentals.service';
 
@@ -117,6 +120,59 @@ export class RentalsController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) rentalId: string,
   ) {
     return this.rentalsService.getLeaseContract(user.organizationId, rentalId);
+  }
+
+  @Get(':id/payments')
+  @Roles(UserRole.super_admin, UserRole.org_admin, UserRole.staff)
+  async listRentalPayments(
+    @CurrentUser() user: StaffRequestUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) rentalId: string,
+    @Query(new ValidationPipe({ whitelist: true, transform: true }))
+    query: ListRentalPaymentsQueryDto,
+  ) {
+    const result = await this.rentalsService.listRentalPayments(
+      user.organizationId,
+      rentalId,
+      query,
+    );
+
+    return withResponseMeta(result.payments, {
+      pagination: result.pagination,
+    });
+  }
+
+  @Post(':id/payments')
+  @Roles(UserRole.super_admin, UserRole.org_admin, UserRole.staff)
+  @HttpCode(HttpStatus.CREATED)
+  createRentalPayment(
+    @CurrentUser() user: StaffRequestUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) rentalId: string,
+    @Body(new ValidationPipe({ whitelist: true, transform: true }))
+    dto: CreateRentalPaymentDto,
+  ) {
+    return this.rentalsService.createRentalPayment(
+      user.organizationId,
+      rentalId,
+      user.userId,
+      dto,
+    );
+  }
+
+  @Patch(':id/payments/:pid')
+  @Roles(UserRole.super_admin, UserRole.org_admin, UserRole.staff)
+  updateRentalPayment(
+    @CurrentUser() user: StaffRequestUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) rentalId: string,
+    @Param('pid', new ParseUUIDPipe({ version: '4' })) paymentId: string,
+    @Body(new ValidationPipe({ whitelist: true, transform: true }))
+    dto: UpdateRentalPaymentDto,
+  ) {
+    return this.rentalsService.updateRentalPayment(
+      user.organizationId,
+      rentalId,
+      paymentId,
+      dto,
+    );
   }
 
   @Get(':id')

@@ -7,7 +7,13 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import { CartStatus, RentalStatus, RentalType } from 'shared';
+import {
+  CartStatus,
+  PaymentMethod,
+  PaymentStatus,
+  RentalStatus,
+  RentalType,
+} from 'shared';
 
 import {
   buildPaginationMeta,
@@ -15,9 +21,12 @@ import {
 } from '../common/pagination/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateLeaseContractDto } from './dto/create-lease-contract.dto';
+import type { CreateRentalPaymentDto } from './dto/create-rental-payment.dto';
 import type { CreateRentalDto } from './dto/create-rental.dto';
+import type { ListRentalPaymentsQueryDto } from './dto/list-rental-payments-query.dto';
 import type { ListRentalsQueryDto } from './dto/list-rentals-query.dto';
 import type { UpdateLeaseContractDto } from './dto/update-lease-contract.dto';
+import type { UpdateRentalPaymentDto } from './dto/update-rental-payment.dto';
 import type { UpdateRentalDto } from './dto/update-rental.dto';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -59,6 +68,24 @@ const LEASE_CONTRACT_PUBLIC_SELECT = {
 
 type LeaseContractPublic = Prisma.LeaseContractGetPayload<{
   select: typeof LEASE_CONTRACT_PUBLIC_SELECT;
+}>;
+
+const PAYMENT_PUBLIC_SELECT = {
+  id: true,
+  rentalId: true,
+  organizationId: true,
+  recordedById: true,
+  amount: true,
+  method: true,
+  status: true,
+  paidAt: true,
+  notes: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.PaymentSelect;
+
+type PaymentPublic = Prisma.PaymentGetPayload<{
+  select: typeof PAYMENT_PUBLIC_SELECT;
 }>;
 
 type RentalCartDetails = {
@@ -370,6 +397,106 @@ export class RentalsService {
 
   async getRentalById(organizationId: string, rentalId: string): Promise<RentalPublic> {
     return this.findRentalForReadOrThrow(organizationId, rentalId);
+  }
+
+  async listRentalPayments(
+    organizationId: string,
+    rentalId: string,
+    query: ListRentalPaymentsQueryDto,
+  ): Promise<{
+    payments: PaymentPublic[];
+    pagination: ReturnType<typeof buildPaginationMeta>;
+  }> {
+    const normalizedSearch = query.search?.trim() || undefined;
+    const where = this.buildPaymentListWhere(organizationId, rentalId, normalizedSearch);
+    const offset = calculatePaginationOffset(query.page, query.pageSize);
+
+    return this.prisma.$transaction(async (tx) => {
+      await this.findRentalForPaymentsOrThrow(tx, organizationId, rentalId);
+
+      const [totalItems, payments] = await Promise.all([
+        tx.payment.count({ where }),
+        tx.payment.findMany({
+          where,
+          skip: offset,
+          take: query.pageSize,
+          orderBy: { createdAt: 'desc' },
+          select: PAYMENT_PUBLIC_SELECT,
+        }),
+      ]);
+
+      return {
+        payments,
+        pagination: buildPaginationMeta({
+          page: query.page,
+          pageSize: query.pageSize,
+          totalItems,
+          search: normalizedSearch,
+        }),
+      };
+    });
+  }
+
+  async createRentalPayment(
+    organizationId: string,
+    rentalId: string,
+    recordedById: string,
+    dto: CreateRentalPaymentDto,
+  ): Promise<PaymentPublic> {
+    this.logger.log(
+      `Rental payment create initiated — org=${organizationId} rentalId=${rentalId} recordedById=${recordedById}`,
+    );
+
+    return this.prisma.$transaction(async (tx) => {
+      await this.findRentalForPaymentsOrThrow(tx, organizationId, rentalId);
+
+      return tx.payment.create({
+        data: {
+          rentalId,
+          organizationId,
+          recordedById,
+          amount: dto.amount,
+          method: dto.method,
+          status: dto.status ?? PaymentStatus.unpaid,
+          paidAt: dto.paidAt ? new Date(dto.paidAt) : undefined,
+          notes: dto.notes,
+        },
+        select: PAYMENT_PUBLIC_SELECT,
+      });
+    });
+  }
+
+  async updateRentalPayment(
+    organizationId: string,
+    rentalId: string,
+    paymentId: string,
+    dto: UpdateRentalPaymentDto,
+  ): Promise<PaymentPublic> {
+    this.logger.log(
+      `Rental payment update initiated — org=${organizationId} rentalId=${rentalId} paymentId=${paymentId}`,
+    );
+
+    return this.prisma.$transaction(async (tx) => {
+      await this.findRentalForPaymentsOrThrow(tx, organizationId, rentalId);
+      const payment = await this.findRentalPaymentOrThrow(
+        tx,
+        organizationId,
+        rentalId,
+        paymentId,
+      );
+
+      return tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          amount: dto.amount,
+          method: dto.method,
+          status: dto.status,
+          paidAt: dto.paidAt ? new Date(dto.paidAt) : undefined,
+          notes: dto.notes,
+        },
+        select: PAYMENT_PUBLIC_SELECT,
+      });
+    });
   }
 
   async updateRental(
@@ -720,6 +847,54 @@ export class RentalsService {
     };
   }
 
+  private buildPaymentListWhere(
+    organizationId: string,
+    rentalId: string,
+    search?: string,
+  ): Prisma.PaymentWhereInput {
+    if (!search) {
+      return {
+        organizationId,
+        rentalId,
+      };
+    }
+
+    const methodFromSearch = this.parsePaymentMethodSearchTerm(search);
+    const statusFromSearch = this.parsePaymentStatusSearchTerm(search);
+    const searchClauses: Prisma.PaymentWhereInput[] = [
+      { notes: { contains: search, mode: 'insensitive' } },
+      { recordedBy: { name: { contains: search, mode: 'insensitive' } } },
+    ];
+
+    if (methodFromSearch) {
+      searchClauses.push({ method: methodFromSearch });
+    }
+
+    if (statusFromSearch) {
+      searchClauses.push({ status: statusFromSearch });
+    }
+
+    return {
+      organizationId,
+      rentalId,
+      OR: searchClauses,
+    };
+  }
+
+  private parsePaymentMethodSearchTerm(search: string): PaymentMethod | undefined {
+    const normalizedSearch = search.toLowerCase();
+    return Object.values(PaymentMethod).includes(normalizedSearch as PaymentMethod)
+      ? (normalizedSearch as PaymentMethod)
+      : undefined;
+  }
+
+  private parsePaymentStatusSearchTerm(search: string): PaymentStatus | undefined {
+    const normalizedSearch = search.toLowerCase();
+    return Object.values(PaymentStatus).includes(normalizedSearch as PaymentStatus)
+      ? (normalizedSearch as PaymentStatus)
+      : undefined;
+  }
+
   private async findRentalForReadOrThrow(
     organizationId: string,
     rentalId: string,
@@ -740,6 +915,52 @@ export class RentalsService {
     }
 
     return rental;
+  }
+
+  private async findRentalForPaymentsOrThrow(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    rentalId: string,
+  ): Promise<void> {
+    const rental = await tx.rental.findFirst({
+      where: {
+        id: rentalId,
+        organizationId,
+      },
+      select: { id: true },
+    });
+
+    if (!rental) {
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: 'Rental not found',
+      });
+    }
+  }
+
+  private async findRentalPaymentOrThrow(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    rentalId: string,
+    paymentId: string,
+  ): Promise<{ id: string }> {
+    const payment = await tx.payment.findFirst({
+      where: {
+        id: paymentId,
+        rentalId,
+        organizationId,
+      },
+      select: { id: true },
+    });
+
+    if (!payment) {
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: 'Payment not found',
+      });
+    }
+
+    return payment;
   }
 
   private async findRentalForUpdateOrThrow(
