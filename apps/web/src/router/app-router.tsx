@@ -15,6 +15,8 @@ import { RentalCheckinPage } from '@/pages/rentals/rental-checkin-page';
 import { RentalCheckoutPage } from '@/pages/rentals/rental-checkout-page';
 import { RentalDetailPage } from '@/pages/rentals/rental-detail-page';
 import { RentalsListPage } from '@/pages/rentals/rentals-list-page';
+import { PortalRentalDetailPage } from '@/pages/portal/portal-rental-detail-page';
+import { PortalRentalsListPage } from '@/pages/portal/portal-rentals-list-page';
 import { useAuthStore } from '@/store/auth-store';
 
 const STAFF_AND_ADMIN_ROLES = [
@@ -103,29 +105,6 @@ function StaffRoutePage({ title, description, currentPath }: AppScaffoldPageProp
         />
       </PageWrapper>
     </AppLayout>
-  );
-}
-
-function PortalRoutePage({ title, description }: Omit<AppScaffoldPageProps, 'currentPath'>) {
-  const currentCustomer = useAuthStore((state) => state.currentCustomer);
-  const currentOrganization = useAuthStore((state) => state.currentOrganization);
-
-  return (
-    <div className="min-h-screen bg-[var(--color-background-subtle)] px-6 py-8">
-      <PageWrapper
-        title={title}
-        subtitle={
-          currentCustomer && currentOrganization
-            ? `${description} Signed in as ${currentCustomer.name} (${currentOrganization.name}).`
-            : description
-        }
-      >
-        <EmptyState
-          heading={`${title} route is wired`}
-          subtext="Customer portal routing is configured; read-only page implementation follows in later Phase 6 tasks."
-        />
-      </PageWrapper>
-    </div>
   );
 }
 
@@ -240,34 +219,22 @@ const appRouter = createBrowserRouter([
   ),
   buildRoute(
     '/portal/rentals',
-    <PortalRoutePage
-      title="Portal Rentals"
-      description="Customer route for listing own rentals in read-only mode."
-    />,
+    <PortalRentalsListPage />,
     ['customer'],
   ),
   buildRoute(
     '/portal/rentals/:id',
-    <PortalRoutePage
-      title="Portal Rental Detail"
-      description="Customer route for viewing rental details."
-    />,
+    <PortalRentalDetailPage />,
     ['customer'],
   ),
   buildRoute(
     '/portal/rentals/:id/contract',
-    <PortalRoutePage
-      title="Portal Lease Contract"
-      description="Customer route for viewing lease contract details."
-    />,
+    <PortalRentalDetailPage />,
     ['customer'],
   ),
   buildRoute(
     '/portal/rentals/:id/payments',
-    <PortalRoutePage
-      title="Portal Payments"
-      description="Customer route for viewing rental payment history."
-    />,
+    <PortalRentalDetailPage />,
     ['customer'],
   ),
   {

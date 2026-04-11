@@ -7,6 +7,7 @@ import { CustomersModule } from './customers/customers.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { LocationsModule } from './locations/locations.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { PortalModule } from './portal/portal.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RentalsModule } from './rentals/rentals.module';
 import { UsersModule } from './users/users.module';
@@ -23,6 +24,7 @@ import { UsersModule } from './users/users.module';
     CartsModule,
     DashboardModule,
     RentalsModule,
+    PortalModule,
   ],
 })
 export class AppModule {}

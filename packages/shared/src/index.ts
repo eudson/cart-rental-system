@@ -14,6 +14,7 @@ export * from './types/customer-api.types';
 export * from './types/dashboard.types';
 export * from './types/payment.types';
 export * from './types/pagination.types';
+export * from './types/portal-api.types';
 export * from './types/rental-api.types';
 export * from './types/rental.types';
 export * from './types/theme.types';

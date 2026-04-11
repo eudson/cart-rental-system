@@ -260,7 +260,7 @@
 
 **Goal:** Fully functional web app for staff/admin operations and customer read-only portal.
 **Status:** In progress
-**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata, Zustand auth store baseline with current user/org state, TanStack Query provider with API client and cache defaults, typed API auth service layer backed by shared DTO contracts, auth route guard redirects, role-based route protection, staff/admin login page, customer portal login page, owner dashboard overview, carts list/register/detail pages, customers list/create/detail pages, rentals list page, multi-step new rental flow, payment recording form and payment list on rental detail
+**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata, Zustand auth store baseline with current user/org state, TanStack Query provider with API client and cache defaults, typed API auth service layer backed by shared DTO contracts, auth route guard redirects, role-based route protection, staff/admin login page, customer portal login page, owner dashboard overview, carts list/register/detail pages, customers list/create/detail pages, rentals list page, multi-step new rental flow, payment recording form and payment list on rental detail, customer portal rentals list, customer portal rental detail (with lease contract section and payment records)
 
 ### Tasks
 
@@ -329,10 +329,10 @@
 - [x] Payment list on rental detail
 
 #### Customer Portal
-- [ ] `/portal/rentals` — list own rentals
-- [ ] `/portal/rentals/:id` — rental detail
-- [ ] `/portal/rentals/:id/contract` — lease contract (if applicable)
-- [ ] `/portal/rentals/:id/payments` — payment records
+- [x] `/portal/rentals` — list own rentals
+- [x] `/portal/rentals/:id` — rental detail
+- [x] `/portal/rentals/:id/contract` — lease contract (if applicable)
+- [x] `/portal/rentals/:id/payments` — payment records
 
 #### Settings (org_admin only)
 - [ ] Organization settings page
@@ -391,6 +391,10 @@
 - 2026-04-11: Added service functions `checkoutRental`, `checkinRental`, `cancelRental`, `getRentalContract` to `apps/web/src/services/rentals-service.ts`.
 - 2026-04-11: Added drill-down links to dashboard action queue: each action item card now links to `/rentals/:rentalId`; each ActionQueueCard header links to a pre-filtered rentals list (`/rentals?status=pending` for check-outs, `/rentals?status=active` for check-ins and overdue). Rentals list page now reads initial status filter from `?status=` URL param.
 - 2026-04-11: Validation: `pnpm --filter web build` passes (1929 modules, 0 errors).
+- 2026-04-11: Built the API `PortalModule` from scratch (`portal.service.ts`, `portal.controller.ts`, `portal.module.ts`, `dto/list-portal-rentals-query.dto.ts`) — the module was previously an empty stub. All routes protected with `CustomerJwtGuard` + `OrgGuard`; all queries double-scoped on `customerId + organizationId` to prevent cross-customer data leaks. List endpoints use `withResponseMeta` per the standard envelope convention.
+- 2026-04-11: Added `PortalLayout` shell (sticky top bar, centered container, no sidebar) and `portal-service.ts` for all portal HTTP calls. Implemented `PortalRentalsListPage` (type/status filters, pagination, status badges) and `PortalRentalDetailPage` (single page covering rental detail + conditional lease contract section + payment records table). Replaced router stubs with real components.
+- 2026-04-11: Added 13 integration tests in `apps/api/test/portal.test.ts` covering: auth rejection (unauthenticated, staff JWT), own-only scoping, cross-customer isolation, status filter, pagination meta, detail access, contract 404 for daily rentals, and payments list. All 13 pass.
+- 2026-04-11: Validation: `pnpm --filter api build` passes, `pnpm --filter web build` passes (0 errors), all 13 portal integration tests pass.
 
 ---
 
@@ -423,9 +427,9 @@
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
 | Phase 4 — Rentals | Complete | 21 / 21 |
 | Phase 5 — Payments | Complete | 5 / 5 |
-| Phase 6 — Frontend | In progress | 34 / 54 |
+| Phase 6 — Frontend | In progress | 38 / 54 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **106 / 133** |
+| **Total** | | **110 / 133** |
 
 ---
 
