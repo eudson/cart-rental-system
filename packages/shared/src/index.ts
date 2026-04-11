@@ -10,4 +10,5 @@ export * from './enums/roles.enum';
 export * from './types/cart.types';
 export * from './types/payment.types';
 export * from './types/rental.types';
+export * from './types/theme.types';
 export * from './types/user.types';

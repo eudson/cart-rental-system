@@ -259,7 +259,7 @@
 
 **Goal:** Fully functional web app for staff/admin operations and customer read-only portal.
 **Status:** In progress
-**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline
+**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`
 
 ### Tasks
 
@@ -272,7 +272,7 @@
 - [x] Hardcode neutral default theme (zinc/slate scale)
 - [x] Install Inter font via `@fontsource/inter`
 - [x] Configure Tailwind typography scale (per `DESIGN.md` section 3)
-- [ ] Document token shape in `packages/shared` for Phase 2 runtime theming
+- [x] Document token shape in `packages/shared` for Phase 2 runtime theming
 - [ ] Build `AppLayout` component (sidebar + main content area)
 - [ ] Build `Sidebar` component (logo slot, role-aware nav links, org name, user/logout)
 - [ ] Build `TopBar` component (page title, contextual action slot, user menu)
@@ -351,6 +351,7 @@
 - 2026-04-11: Installed and configured shadcn/ui with the required primitive set (`Button`, `Input`, `Select`, `Table`, `Badge`, `Card`, `Dialog`, `AlertDialog`, `DropdownMenu`, `Separator`, `Skeleton`, `Sonner`) plus the shared `cn()` helper in `src/lib/utils.ts`.
 - 2026-04-11: Updated `components.json` aliases to `src/*` paths after initial CLI generation emitted components to an incorrect literal `@/` directory; moved generated files into `src/components/ui`.
 - 2026-04-11: Validation: `pnpm --filter web build` passes; Vite dev server boots successfully via `pnpm --filter web dev`.
+- 2026-04-11: Added shared Phase 2 runtime theming contract in `packages/shared/src/types/theme.types.ts`, including canonical overridable CSS variable names (`primary`, `secondary`, `accent` pairs) and exported token map typing for API/web reuse.
 
 ---
 
@@ -383,9 +384,9 @@
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
 | Phase 4 — Rentals | Complete | 21 / 21 |
 | Phase 5 — Payments | Complete | 5 / 5 |
-| Phase 6 — Frontend | In progress | 10 / 54 |
+| Phase 6 — Frontend | In progress | 11 / 54 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **82 / 133** |
+| **Total** | | **83 / 133** |
 
 ---
 
