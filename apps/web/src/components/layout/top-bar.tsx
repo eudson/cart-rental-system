@@ -42,7 +42,7 @@ function getInitials(name: string): string {
 
 export function TopBar({ title, actionSlot, userName, userRole, onLogout }: TopBarProps) {
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border bg-background px-6">
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background px-6">
       <h2 className="text-lg font-medium">{title}</h2>
       <div className="flex items-center gap-3">
         {actionSlot ? <div>{actionSlot}</div> : null}

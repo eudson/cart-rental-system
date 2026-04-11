@@ -314,7 +314,7 @@
 
 #### Rentals
 - [x] Rentals list page (filters: type, status, date range)
-- [ ] New rental flow:
+- [x] New rental flow:
   - [x] Step 1 — Select customer
   - [x] Step 2 — Availability check (date/type input → available carts returned)
   - [x] Step 3 — Select cart
@@ -383,6 +383,7 @@
 - 2026-04-11: Implemented `/rentals/new` as a four-step workflow: customer selection, rental-window setup, availability lookup through `GET /carts/availability`, and confirm/create with API-backed daily and lease creation.
 - 2026-04-11: Expanded the rentals API contract used by the frontend so list responses include customer/cart/location summaries and support overlap-style date filtering (`startDateFrom`, `endDateTo`) without requiring multiple client-side lookup requests.
 - 2026-04-11: Validation: `pnpm --filter api build`, `node --test apps/api/dist/test/rentals.test.js`, and `pnpm --filter web build` all pass. Vite still reports the existing chunk-size warning for the main bundle; no functional build failure.
+- 2026-04-11: Fixed app-shell scrolling so long pages scroll within the main content pane only; sidebar and top bar now remain fixed instead of moving with document scroll.
 
 ---
 

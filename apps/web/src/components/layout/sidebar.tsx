@@ -121,7 +121,7 @@ export function Sidebar({
   const visibleSettingsLinks = settingsLinks.filter((link) => canRender(userRole, link.roles));
 
   return (
-    <aside className="flex h-screen w-[240px] shrink-0 flex-col border-r border-border bg-[var(--color-background-subtle)]">
+    <aside className="flex h-full w-[240px] shrink-0 flex-col border-r border-border bg-[var(--color-background-subtle)]">
       <div className="flex h-14 items-center px-4">
         {logoUrl ? (
           <img src={logoUrl} alt={`${orgName} logo`} className="h-7 max-w-[180px] object-contain" />

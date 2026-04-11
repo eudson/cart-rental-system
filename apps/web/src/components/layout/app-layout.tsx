@@ -27,7 +27,7 @@ export function AppLayout({
   children,
 }: AppLayoutProps) {
   return (
-    <div className="flex min-h-screen bg-[var(--color-background-subtle)] text-foreground">
+    <div className="flex h-screen overflow-hidden bg-[var(--color-background-subtle)] text-foreground">
       <Sidebar
         userRole={userRole}
         orgName={orgName}
@@ -36,7 +36,7 @@ export function AppLayout({
         currentPath={currentPath}
         onLogout={onLogout}
       />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden">
         <TopBar
           title={pageTitle}
           actionSlot={actionSlot}
@@ -44,7 +44,7 @@ export function AppLayout({
           userRole={userRole}
           onLogout={onLogout}
         />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 min-h-0 overflow-y-auto">{children}</main>
       </div>
     </div>
   );
