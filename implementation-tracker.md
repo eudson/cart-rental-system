@@ -176,7 +176,7 @@
 
 **Goal:** Full rental lifecycle working for both daily and lease rentals. Double-booking prevention enforced.
 **Status:** In progress
-**Completed:** Availability endpoint (`GET /carts/availability`) with overlap filtering and transaction-scoped query execution
+**Completed:** Availability endpoint (`GET /carts/availability`) with overlap filtering and transaction-scoped query execution; Daily rental creation (`POST /rentals`) with snapshot pricing, overlap protection, and cart reservation
 
 ### Tasks
 
@@ -186,11 +186,11 @@
 - [x] Query runs inside DB transaction to prevent race conditions
 
 #### Daily Rentals
-- [ ] `POST /rentals` — create daily rental
-- [ ] Rate snapshot copied from CartType at time of booking
-- [ ] Double-booking prevention enforced (overlap check in transaction)
-- [ ] Cart status set to `reserved` on create
-- [ ] `totalAmount` calculation: `dailyRateSnapshot × days`
+- [x] `POST /rentals` — create daily rental
+- [x] Rate snapshot copied from CartType at time of booking
+- [x] Double-booking prevention enforced (overlap check in transaction)
+- [x] Cart status set to `reserved` on create
+- [x] `totalAmount` calculation: `dailyRateSnapshot × days`
 
 #### Lease Rentals
 - [ ] `POST /rentals` — create lease rental (type: lease)
@@ -215,6 +215,9 @@
 - 2026-04-10: Implemented `GET /carts/availability` in the carts module using org-scoped JWT context with validated query params (`startDate`, `endDate`, `locationId`, `type`).
 - 2026-04-10: Availability logic now excludes carts with overlapping `pending`/`active` rentals via the PRD overlap rule (`startDate < endDate` and `endDate > startDate`) while requiring `cart.status = available`.
 - 2026-04-10: Executed overlap lookup and available-cart query inside a single Prisma `$transaction`, and added integration tests for overlap exclusion, location filtering, and invalid date-range rejection.
+- 2026-04-11: Added `RentalsModule` with `POST /rentals` (staff/admin) for daily rentals, including strict org scoping, date-range validation, and full-day duration validation.
+- 2026-04-11: Daily rental creation now runs inside one Prisma `$transaction`: verifies customer/cart ownership, enforces cart availability, applies overlap conflict detection (`RENTAL_OVERLAP`), snapshots `CartType.dailyRate` to `dailyRateSnapshot`, calculates `totalAmount`, creates the rental, and updates cart status to `reserved`.
+- 2026-04-11: Added daily rental integration tests for success path, `CART_NOT_AVAILABLE`, `RENTAL_OVERLAP`, cross-org customer rejection, and invalid date ranges; also validated via live curl against `http://127.0.0.1:3000/v1`.
 
 ---
 
@@ -333,11 +336,11 @@
 | Phase 1 — Foundation | Complete | 9 / 9 |
 | Phase 2 — Auth & Multi-Tenancy | Complete | 13 / 13 |
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
-| Phase 4 — Rentals | In progress | 3 / 18 |
+| Phase 4 — Rentals | In progress | 8 / 18 |
 | Phase 5 — Payments | Not started | 0 / 5 |
 | Phase 6 — Frontend | Not started | 0 / 37 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **48 / 113** |
+| **Total** | | **53 / 113** |
 
 ---
 

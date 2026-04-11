@@ -7,6 +7,7 @@ import { CustomersModule } from './customers/customers.module';
 import { LocationsModule } from './locations/locations.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RentalsModule } from './rentals/rentals.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -19,6 +20,7 @@ import { UsersModule } from './users/users.module';
     CustomersModule,
     CartTypesModule,
     CartsModule,
+    RentalsModule,
   ],
 })
 export class AppModule {}
