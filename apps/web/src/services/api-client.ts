@@ -28,6 +28,11 @@ interface ApiSuccessEnvelope<TData> {
   error: null;
 }
 
+export interface ApiResponseWithMeta<TData> {
+  data: TData;
+  meta: Record<string, unknown>;
+}
+
 interface ApiRequestOptions<TBody> {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: TBody;
@@ -39,14 +44,10 @@ export function getApiBaseUrl(): string {
   return import.meta.env.VITE_API_BASE_URL?.trim() || DEFAULT_API_BASE_URL;
 }
 
-export async function apiRequest<TResponse, TBody = undefined>(
-  path: string,
-  options: ApiRequestOptions<TBody> = {},
-): Promise<TResponse> {
+function buildFetchHeaders<TBody>(options: ApiRequestOptions<TBody>): Headers {
   const { accessToken } = useAuthStore.getState();
-  const method = options.method ?? 'GET';
-
   const headers = new Headers(options.headers);
+
   headers.set('Accept', 'application/json');
 
   if (options.body !== undefined) {
@@ -56,6 +57,16 @@ export async function apiRequest<TResponse, TBody = undefined>(
   if (accessToken) {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
+
+  return headers;
+}
+
+async function executeApiRequest<TResponse, TBody = undefined>(
+  path: string,
+  options: ApiRequestOptions<TBody> = {},
+): Promise<ApiSuccessEnvelope<TResponse>> {
+  const method = options.method ?? 'GET';
+  const headers = buildFetchHeaders(options);
 
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method,
@@ -80,9 +91,61 @@ export async function apiRequest<TResponse, TBody = undefined>(
   }
 
   if (response.status === 204) {
-    return undefined as TResponse;
+    return {
+      data: undefined as TResponse,
+      meta: {},
+      error: null,
+    };
   }
 
-  const envelope = (await response.json()) as ApiSuccessEnvelope<TResponse>;
+  return (await response.json()) as ApiSuccessEnvelope<TResponse>;
+}
+
+export function buildQueryString(query: object): string {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(query)) {
+    if (
+      typeof value !== 'string' &&
+      typeof value !== 'number' &&
+      typeof value !== 'boolean' &&
+      value !== undefined &&
+      value !== null
+    ) {
+      continue;
+    }
+
+    if (
+      value === undefined ||
+      value === null ||
+      (typeof value === 'string' && value.trim().length === 0)
+    ) {
+      continue;
+    }
+
+    params.set(key, String(value));
+  }
+
+  const encodedQuery = params.toString();
+  return encodedQuery ? `?${encodedQuery}` : '';
+}
+
+export async function apiRequestWithMeta<TResponse, TBody = undefined>(
+  path: string,
+  options: ApiRequestOptions<TBody> = {},
+): Promise<ApiResponseWithMeta<TResponse>> {
+  const envelope = await executeApiRequest<TResponse, TBody>(path, options);
+
+  return {
+    data: envelope.data,
+    meta: envelope.meta ?? {},
+  };
+}
+
+export async function apiRequest<TResponse, TBody = undefined>(
+  path: string,
+  options: ApiRequestOptions<TBody> = {},
+): Promise<TResponse> {
+  const envelope = await executeApiRequest<TResponse, TBody>(path, options);
   return envelope.data;
 }

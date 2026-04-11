@@ -9,7 +9,11 @@ export * from './enums/roles.enum';
 
 export * from './types/cart.types';
 export * from './types/auth.types';
+export * from './types/cart-api.types';
+export * from './types/customer-api.types';
 export * from './types/payment.types';
+export * from './types/pagination.types';
+export * from './types/rental-api.types';
 export * from './types/rental.types';
 export * from './types/theme.types';
 export * from './types/user.types';

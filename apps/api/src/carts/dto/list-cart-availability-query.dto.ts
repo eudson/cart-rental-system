@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { RentalType } from 'shared';
 
 export class ListCartAvailabilityQueryDto {
@@ -12,8 +12,8 @@ export class ListCartAvailabilityQueryDto {
   endDate!: string;
 
   @IsOptional()
-  @Type(() => String)
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   locationId?: string;
 
   @Type(() => String)

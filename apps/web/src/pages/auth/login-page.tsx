@@ -93,21 +93,21 @@ function LoginPage({ variant, title, description, submitLabel }: LoginPageConfig
       if (!claims) {
         const message = 'Login succeeded, but session claims were invalid. Please log in again.';
         setFormErrorMessage(message);
-        toast.error(message, { duration: Infinity });
+        toast.error(message, { duration: 8000, closeButton: true });
         return;
       }
 
       if (variant === 'staff' && claims.role === 'customer') {
         const message = 'Customer credentials cannot access the staff application.';
         setFormErrorMessage(message);
-        toast.error(message, { duration: Infinity });
+        toast.error(message, { duration: 8000, closeButton: true });
         return;
       }
 
       if (variant === 'customer' && claims.role !== 'customer') {
         const message = 'Staff credentials must use the staff/admin login route.';
         setFormErrorMessage(message);
-        toast.error(message, { duration: Infinity });
+        toast.error(message, { duration: 8000, closeButton: true });
         return;
       }
 
@@ -130,7 +130,7 @@ function LoginPage({ variant, title, description, submitLabel }: LoginPageConfig
         const message =
           'Invalid credentials. Please verify your email, password, and organization slug.';
         setFormErrorMessage(message);
-        toast.error(message, { duration: Infinity });
+        toast.error(message, { duration: 8000, closeButton: true });
         return;
       }
 
@@ -139,7 +139,7 @@ function LoginPage({ variant, title, description, submitLabel }: LoginPageConfig
           ? error.message
           : 'Login failed. Please try again in a moment.';
       setFormErrorMessage(message);
-      toast.error(message, { duration: Infinity });
+      toast.error(message, { duration: 8000, closeButton: true });
     },
   });
 

@@ -5,19 +5,18 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUUID,
 } from 'class-validator';
 import { CartStatus } from 'shared';
 
 export class UpdateCartDto {
   @IsOptional()
-  @Type(() => String)
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   locationId?: string;
 
   @IsOptional()
-  @Type(() => String)
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   cartTypeId?: string;
 
   @IsOptional()

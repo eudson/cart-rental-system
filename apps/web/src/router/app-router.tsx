@@ -5,6 +5,11 @@ import { EmptyState } from '@/components/common/empty-state';
 import { AppLayout } from '@/components/layout/app-layout';
 import { PageWrapper } from '@/components/layout/page-wrapper';
 import { CustomerLoginPage, StaffLoginPage } from '@/pages/auth/login-page';
+import { CartDetailPage } from '@/pages/carts/cart-detail-page';
+import { CartsListPage } from '@/pages/carts/carts-list-page';
+import { CustomerDetailPage } from '@/pages/customers/customer-detail-page';
+import { CustomersListPage } from '@/pages/customers/customers-list-page';
+import { RentalDetailPage } from '@/pages/rentals/rental-detail-page';
 import { useAuthStore } from '@/store/auth-store';
 
 const STAFF_AND_ADMIN_ROLES = [
@@ -144,38 +149,22 @@ const appRouter = createBrowserRouter([
   ),
   buildRoute(
     '/carts',
-    <StaffRoutePage
-      title="Carts"
-      description="Cart inventory list and registration workflows for operations teams."
-      currentPath="/carts"
-    />,
+    <CartsListPage />,
     STAFF_AND_ADMIN_ROLES,
   ),
   buildRoute(
     '/carts/:id',
-    <StaffRoutePage
-      title="Cart Detail"
-      description="Single-cart detail view including current rental context and history."
-      currentPath="/carts"
-    />,
+    <CartDetailPage />,
     STAFF_AND_ADMIN_ROLES,
   ),
   buildRoute(
     '/customers',
-    <StaffRoutePage
-      title="Customers"
-      description="Customer listing and search surface for staff/admin workflows."
-      currentPath="/customers"
-    />,
+    <CustomersListPage />,
     STAFF_AND_ADMIN_ROLES,
   ),
   buildRoute(
     '/customers/:id',
-    <StaffRoutePage
-      title="Customer Detail"
-      description="Customer profile and rental history view."
-      currentPath="/customers"
-    />,
+    <CustomerDetailPage />,
     STAFF_AND_ADMIN_ROLES,
   ),
   buildRoute(
@@ -198,11 +187,7 @@ const appRouter = createBrowserRouter([
   ),
   buildRoute(
     '/rentals/:id',
-    <StaffRoutePage
-      title="Rental Detail"
-      description="Rental detail, contract, and payment records route."
-      currentPath="/rentals"
-    />,
+    <RentalDetailPage />,
     STAFF_AND_ADMIN_ROLES,
   ),
   buildRoute(

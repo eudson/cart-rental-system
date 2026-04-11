@@ -6,7 +6,6 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -72,7 +71,7 @@ export class CartsController {
   @Roles(UserRole.super_admin, UserRole.org_admin, UserRole.staff)
   getCartById(
     @CurrentUser() user: StaffRequestUser,
-    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('id') id: string,
   ) {
     return this.cartsService.getCartById(user.organizationId, id);
   }
@@ -81,7 +80,7 @@ export class CartsController {
   @Roles(UserRole.super_admin, UserRole.org_admin, UserRole.staff)
   updateCart(
     @CurrentUser() user: StaffRequestUser,
-    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('id') id: string,
     @Body(new ValidationPipe({ whitelist: true, transform: true }))
     dto: UpdateCartDto,
   ) {

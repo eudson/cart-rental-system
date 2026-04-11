@@ -5,17 +5,16 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUUID,
 } from 'class-validator';
 import { CartStatus } from 'shared';
 
 export class CreateCartDto {
-  @Type(() => String)
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   locationId!: string;
 
-  @Type(() => String)
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   cartTypeId!: string;
 
   @IsString()

@@ -259,7 +259,7 @@
 
 **Goal:** Fully functional web app for staff/admin operations and customer read-only portal.
 **Status:** In progress
-**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata, Zustand auth store baseline with current user/org state, TanStack Query provider with API client and cache defaults, typed API auth service layer backed by shared DTO contracts, auth route guard redirects, role-based route protection, staff/admin login page, customer portal login page
+**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata, Zustand auth store baseline with current user/org state, TanStack Query provider with API client and cache defaults, typed API auth service layer backed by shared DTO contracts, auth route guard redirects, role-based route protection, staff/admin login page, customer portal login page, carts list/register/detail pages, customers list/create/detail pages, payment recording form and payment list on rental detail
 
 ### Tasks
 
@@ -302,14 +302,14 @@
 - [ ] Upcoming check-outs today
 
 #### Carts
-- [ ] Carts list page (status badges, filters)
-- [ ] Register new cart form
-- [ ] Cart detail page (current rental, history)
+- [x] Carts list page (status badges, filters)
+- [x] Register new cart form
+- [x] Cart detail page (current rental, history)
 
 #### Customers
-- [ ] Customers list page (search)
-- [ ] Customer detail page (profile + rental history)
-- [ ] Create customer form
+- [x] Customers list page (search)
+- [x] Customer detail page (profile + rental history)
+- [x] Create customer form
 
 #### Rentals
 - [ ] Rentals list page (filters: type, status, date range)
@@ -324,8 +324,8 @@
 - [ ] Cancel rental action
 
 #### Payments
-- [ ] Payment recording form (per rental)
-- [ ] Payment list on rental detail
+- [x] Payment recording form (per rental)
+- [x] Payment list on rental detail
 
 #### Customer Portal
 - [ ] `/portal/rentals` — list own rentals
@@ -369,6 +369,12 @@
 - 2026-04-11: Validation: `pnpm --filter web build` passes. Shared package compile was validated with `pnpm --filter web exec tsc -p ../../packages/shared/tsconfig.json` because `pnpm --filter shared build` currently fails in this workspace (`tsc: command not found` under `packages/shared` script context).
 - 2026-04-11: Fixed login white-screen runtime error in Vite dev (`shared` named exports unresolved from CommonJS `packages/shared/dist/index.js`) by aliasing `shared` to `packages/shared/src/index.ts` in `apps/web/vite.config.ts`.
 - 2026-04-11: Fixed frontend-to-API login CORS failures by enabling CORS in `apps/api/src/app.setup.ts` with local origin allowlisting (`localhost`/`127.0.0.1` any port) and optional `CORS_ORIGINS` env overrides; added bootstrap integration coverage for local-origin preflight.
+- 2026-04-11: Added typed frontend service modules for carts/customers/rentals/payments plus shared API query/pagination DTO types in `packages/shared`, and updated API envelope handling in `api-client` to preserve `meta.pagination` alongside response data.
+- 2026-04-11: Implemented `Carts` pages (`/carts`, `/carts/:id`) with status/location/search filters, registration form dialog, status badges, and cart detail current-rental/history sections backed by rentals data.
+- 2026-04-11: Implemented `Customers` pages (`/customers`, `/customers/:id`) with searchable list, create-customer dialog form, and customer rental-history detail view.
+- 2026-04-11: Implemented payment management on rental detail route (`/rentals/:id`) with manual payment recording form and paginated payment records table.
+- 2026-04-11: Validation: `pnpm --filter web build` passes after Carts/Customers/Payments implementation.
+- 2026-04-11: Fixed cart registration validation mismatch where existing legacy seed ids (e.g., `seed-cart-type-001`) were rejected as non-UUID; carts DTO/query id validators now accept non-empty string ids to match persisted data shape, and cart endpoints no longer require UUID path params.
 
 ---
 
@@ -401,9 +407,9 @@
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
 | Phase 4 — Rentals | Complete | 21 / 21 |
 | Phase 5 — Payments | Complete | 5 / 5 |
-| Phase 6 — Frontend | In progress | 26 / 54 |
+| Phase 6 — Frontend | In progress | 34 / 54 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **98 / 133** |
+| **Total** | | **106 / 133** |
 
 ---
 

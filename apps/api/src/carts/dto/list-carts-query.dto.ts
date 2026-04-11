@@ -1,13 +1,13 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { CartStatus } from 'shared';
 
 import { PaginationQueryDto } from '../../common/pagination/pagination-query.dto';
 
 export class ListCartsQueryDto extends PaginationQueryDto {
   @IsOptional()
-  @Type(() => String)
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   locationId?: string;
 
   @IsOptional()
