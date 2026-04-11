@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom';
+import { Navigate, RouterProvider, createBrowserRouter, useLocation } from 'react-router-dom';
 import { UserRole } from 'shared';
 import { EmptyState } from '@/components/common/empty-state';
 import { AppLayout } from '@/components/layout/app-layout';
 import { PageWrapper } from '@/components/layout/page-wrapper';
+import { CustomerLoginPage, StaffLoginPage } from '@/pages/auth/login-page';
 import { useAuthStore } from '@/store/auth-store';
 
 const STAFF_AND_ADMIN_ROLES = [
@@ -16,38 +17,74 @@ const ORG_ADMIN_ROLES = [UserRole.org_admin] as const;
 
 type AppRouteRole = UserRole | 'customer' | 'public';
 
-interface RouteHandle {
-  allowedRoles: readonly AppRouteRole[];
-}
-
 interface AppScaffoldPageProps {
   title: string;
   description: string;
   currentPath: string;
 }
 
-function AuthRoutePage({ title, description }: Omit<AppScaffoldPageProps, 'currentPath'>) {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--color-background-subtle)] px-6 py-10">
-      <div className="w-full max-w-lg rounded-lg border border-border bg-background p-8 shadow-sm">
-        <h1>{title}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
-      </div>
-    </div>
-  );
+interface RouteAccessGateProps {
+  allowedRoles: readonly AppRouteRole[];
+  children: ReactNode;
+}
+
+function getLoginPath(allowedRoles: readonly AppRouteRole[]): string {
+  return allowedRoles.includes('customer') ? '/portal/login' : '/login';
+}
+
+function getDefaultPathForSession(sessionType: 'staff' | 'customer'): string {
+  return sessionType === 'customer' ? '/portal/rentals' : '/dashboard';
+}
+
+function RouteAccessGate({ allowedRoles, children }: RouteAccessGateProps) {
+  const location = useLocation();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const sessionType = useAuthStore((state) => state.sessionType);
+  const sessionRole = useAuthStore((state) => state.sessionRole);
+
+  if (allowedRoles.includes('public')) {
+    if (!isAuthenticated || !sessionType || !sessionRole) {
+      return <>{children}</>;
+    }
+
+    return <Navigate to={getDefaultPathForSession(sessionType)} replace />;
+  }
+
+  if (!isAuthenticated || !sessionType || !sessionRole) {
+    return (
+      <Navigate
+        to={getLoginPath(allowedRoles)}
+        replace
+        state={{ from: `${location.pathname}${location.search}` }}
+      />
+    );
+  }
+
+  if (!allowedRoles.includes(sessionRole)) {
+    return <Navigate to={getDefaultPathForSession(sessionType)} replace />;
+  }
+
+  return <>{children}</>;
 }
 
 function StaffRoutePage({ title, description, currentPath }: AppScaffoldPageProps) {
   const currentOrganization = useAuthStore((state) => state.currentOrganization);
   const currentUser = useAuthStore((state) => state.currentUser);
+  const sessionRole = useAuthStore((state) => state.sessionRole);
+  const clearAuthState = useAuthStore((state) => state.clearAuthState);
+
+  const userRole =
+    currentUser?.role ??
+    (sessionRole && sessionRole !== 'customer' ? sessionRole : UserRole.org_admin);
 
   return (
     <AppLayout
       pageTitle={title}
       currentPath={currentPath}
       orgName={currentOrganization?.name ?? 'Demo Golf Carts'}
-      userName={currentUser?.name ?? 'Alex Johnson'}
-      userRole={currentUser?.role ?? UserRole.org_admin}
+      userName={currentUser?.name ?? 'Operations User'}
+      userRole={userRole}
+      onLogout={clearAuthState}
     >
       <PageWrapper title={title} subtitle={description}>
         <EmptyState
@@ -82,17 +119,10 @@ function PortalRoutePage({ title, description }: Omit<AppScaffoldPageProps, 'cur
   );
 }
 
-function buildRoute(
-  path: string,
-  element: ReactNode,
-  allowedRoles: readonly AppRouteRole[],
-) {
+function buildRoute(path: string, element: ReactNode, allowedRoles: readonly AppRouteRole[]) {
   return {
     path,
-    element,
-    handle: {
-      allowedRoles,
-    } satisfies RouteHandle,
+    element: <RouteAccessGate allowedRoles={allowedRoles}>{element}</RouteAccessGate>,
   };
 }
 
@@ -100,24 +130,9 @@ const appRouter = createBrowserRouter([
   {
     path: '/',
     element: <Navigate to="/dashboard" replace />,
-    handle: { allowedRoles: ['public'] } satisfies RouteHandle,
   },
-  buildRoute(
-    '/login',
-    <AuthRoutePage
-      title="Staff/Admin Login"
-      description="Public route for staff and organization administrators to access operations pages."
-    />,
-    ['public'],
-  ),
-  buildRoute(
-    '/portal/login',
-    <AuthRoutePage
-      title="Customer Portal Login"
-      description="Public route for customers to access read-only rental, contract, and payment views."
-    />,
-    ['public'],
-  ),
+  buildRoute('/login', <StaffLoginPage />, ['public']),
+  buildRoute('/portal/login', <CustomerLoginPage />, ['public']),
   buildRoute(
     '/dashboard',
     <StaffRoutePage
@@ -288,7 +303,6 @@ const appRouter = createBrowserRouter([
   {
     path: '*',
     element: <Navigate to="/dashboard" replace />,
-    handle: { allowedRoles: ['public'] } satisfies RouteHandle,
   },
 ]);
 

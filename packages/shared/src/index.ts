@@ -8,6 +8,7 @@ export * from './enums/rental-type.enum';
 export * from './enums/roles.enum';
 
 export * from './types/cart.types';
+export * from './types/auth.types';
 export * from './types/payment.types';
 export * from './types/rental.types';
 export * from './types/theme.types';

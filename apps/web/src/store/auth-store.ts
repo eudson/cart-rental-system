@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Customer, Organization, User } from 'shared';
+import type { Customer, Organization, SessionRole, User } from 'shared';
 
 type SessionType = 'staff' | 'customer' | null;
 
@@ -14,11 +14,20 @@ interface CustomerSessionPayload {
   organization: Organization;
   customer: Customer;
   accessToken: string;
+  refreshToken?: string | null;
+}
+
+interface TokenSessionPayload {
+  sessionType: Exclude<SessionType, null>;
+  sessionRole: SessionRole;
+  accessToken: string;
+  refreshToken?: string | null;
 }
 
 interface AuthStoreState {
   isAuthenticated: boolean;
   sessionType: SessionType;
+  sessionRole: SessionRole | null;
   accessToken: string | null;
   refreshToken: string | null;
   currentOrganization: Organization | null;
@@ -26,6 +35,7 @@ interface AuthStoreState {
   currentCustomer: Customer | null;
   setStaffSession: (payload: StaffSessionPayload) => void;
   setCustomerSession: (payload: CustomerSessionPayload) => void;
+  setTokenSession: (payload: TokenSessionPayload) => void;
   setAccessToken: (accessToken: string) => void;
   setRefreshToken: (refreshToken: string | null) => void;
   setCurrentOrganization: (organization: Organization | null) => void;
@@ -35,6 +45,7 @@ interface AuthStoreState {
 const INITIAL_AUTH_STATE = {
   isAuthenticated: false,
   sessionType: null as SessionType,
+  sessionRole: null as SessionRole | null,
   accessToken: null,
   refreshToken: null,
   currentOrganization: null,
@@ -48,6 +59,7 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
     set({
       isAuthenticated: true,
       sessionType: 'staff',
+      sessionRole: user.role,
       accessToken,
       refreshToken,
       currentOrganization: organization,
@@ -55,15 +67,28 @@ export const useAuthStore = create<AuthStoreState>((set) => ({
       currentCustomer: null,
     });
   },
-  setCustomerSession: ({ organization, customer, accessToken }) => {
+  setCustomerSession: ({ organization, customer, accessToken, refreshToken = null }) => {
     set({
       isAuthenticated: true,
       sessionType: 'customer',
+      sessionRole: 'customer',
       accessToken,
-      refreshToken: null,
+      refreshToken,
       currentOrganization: organization,
       currentUser: null,
       currentCustomer: customer,
+    });
+  },
+  setTokenSession: ({ sessionType, sessionRole, accessToken, refreshToken = null }) => {
+    set({
+      isAuthenticated: true,
+      sessionType,
+      sessionRole,
+      accessToken,
+      refreshToken,
+      currentOrganization: null,
+      currentUser: null,
+      currentCustomer: null,
     });
   },
   setAccessToken: (accessToken) => {

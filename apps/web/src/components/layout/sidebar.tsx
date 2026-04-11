@@ -11,6 +11,7 @@ import {
   UserCog,
   Users,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { UserRole } from 'shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -136,9 +137,9 @@ export function Sidebar({
             const isActive = isActiveLink(currentPath, link.href);
 
             return (
-              <a
+              <Link
                 key={link.href}
-                href={link.href}
+                to={link.href}
                 className={cn(
                   'flex h-9 items-center gap-2 rounded-md border-l-2 px-3 text-sm transition-colors',
                   isActive
@@ -148,7 +149,7 @@ export function Sidebar({
               >
                 <Icon className="h-4 w-4" />
                 <span>{link.label}</span>
-              </a>
+              </Link>
             );
           })}
         </div>
@@ -163,9 +164,9 @@ export function Sidebar({
                 const isActive = isActiveLink(currentPath, link.href);
 
                 return (
-                  <a
+                  <Link
                     key={link.href}
-                    href={link.href}
+                    to={link.href}
                     className={cn(
                       'flex h-9 items-center gap-2 rounded-md border-l-2 px-3 text-sm transition-colors',
                       isActive
@@ -175,7 +176,7 @@ export function Sidebar({
                   >
                     <Icon className="h-4 w-4" />
                     <span>{link.label}</span>
-                  </a>
+                  </Link>
                 );
               })}
             </div>

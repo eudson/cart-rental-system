@@ -259,7 +259,7 @@
 
 **Goal:** Fully functional web app for staff/admin operations and customer read-only portal.
 **Status:** In progress
-**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata, Zustand auth store baseline with current user/org state, TanStack Query provider with API client and cache defaults
+**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata, Zustand auth store baseline with current user/org state, TanStack Query provider with API client and cache defaults, typed API auth service layer backed by shared DTO contracts, auth route guard redirects, role-based route protection, staff/admin login page, customer portal login page
 
 ### Tasks
 
@@ -287,13 +287,13 @@
 - [x] React Router configured (role-based routing per PRD section 9)
 - [x] Zustand store (auth state, current user/org)
 - [x] TanStack Query configured (API client, caching)
-- [ ] API service layer (typed, uses shared DTOs)
-- [ ] Auth route guard (redirect if not authenticated)
-- [ ] Role-based route protection (redirect if insufficient role)
+- [x] API service layer (typed, uses shared DTOs)
+- [x] Auth route guard (redirect if not authenticated)
+- [x] Role-based route protection (redirect if insufficient role)
 
 #### Auth Pages
-- [ ] Staff/admin login page (`/login`)
-- [ ] Customer portal login page (`/portal/login`)
+- [x] Staff/admin login page (`/login`)
+- [x] Customer portal login page (`/portal/login`)
 
 #### Dashboard
 - [ ] Today's active rentals count
@@ -362,6 +362,13 @@
 - 2026-04-11: Added TanStack Query foundation with `src/providers/app-providers.tsx` and `src/services/query-client.ts`, including default caching/retry behavior (`staleTime=30s`, `gcTime=5m`, no mutation retries, no refetch-on-focus).
 - 2026-04-11: Added `src/services/api-client.ts` as the shared request utility for React Query usage, with typed API envelope handling, auth token injection from Zustand, and normalized `ApiClientError` for retry logic.
 - 2026-04-11: Updated `src/App.tsx` to wrap routing with `QueryClientProvider` and added typed `VITE_API_BASE_URL` support in `src/vite-env.d.ts`.
+- 2026-04-11: Added shared auth DTO contracts in `packages/shared` and a typed frontend auth service layer (`login`, `customer login`, `refresh`, `logout`) consumed via React Query mutations in the auth pages.
+- 2026-04-11: Implemented route-level access control in `src/router/app-router.tsx`: unauthenticated users are redirected to the proper login route, authenticated users are kept off public login routes, and insufficient-role access redirects to the correct dashboard/portal home.
+- 2026-04-11: Replaced sidebar anchor navigation with `react-router-dom` `Link` to prevent full-page reloads that would otherwise clear in-memory auth state.
+- 2026-04-11: Implemented `/login` and `/portal/login` pages with validated forms, inline field errors, pending-state submit buttons, typed API integration, JWT claim parsing, Zustand session initialization, and post-login redirect handling from protected-route intents.
+- 2026-04-11: Validation: `pnpm --filter web build` passes. Shared package compile was validated with `pnpm --filter web exec tsc -p ../../packages/shared/tsconfig.json` because `pnpm --filter shared build` currently fails in this workspace (`tsc: command not found` under `packages/shared` script context).
+- 2026-04-11: Fixed login white-screen runtime error in Vite dev (`shared` named exports unresolved from CommonJS `packages/shared/dist/index.js`) by aliasing `shared` to `packages/shared/src/index.ts` in `apps/web/vite.config.ts`.
+- 2026-04-11: Fixed frontend-to-API login CORS failures by enabling CORS in `apps/api/src/app.setup.ts` with local origin allowlisting (`localhost`/`127.0.0.1` any port) and optional `CORS_ORIGINS` env overrides; added bootstrap integration coverage for local-origin preflight.
 
 ---
 
@@ -394,9 +401,9 @@
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
 | Phase 4 — Rentals | Complete | 21 / 21 |
 | Phase 5 — Payments | Complete | 5 / 5 |
-| Phase 6 — Frontend | In progress | 21 / 54 |
+| Phase 6 — Frontend | In progress | 26 / 54 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **93 / 133** |
+| **Total** | | **98 / 133** |
 
 ---
 
