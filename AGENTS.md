@@ -23,7 +23,7 @@ Use these root workspace commands during development unless there is a task-spec
 Copy `.env.example` to `.env` before running API or Prisma commands. The repository uses the root `.env` file as the standard local configuration source.
 
 - `pnpm dev:api` — starts the NestJS API using `DATABASE_URL` from the root `.env`
-- `pnpm dev:web` — validates root workspace script wiring only; this is a placeholder until the Phase 6 Vite scaffold exists
+- `pnpm dev:web` — starts the Vite React frontend dev server for `apps/web`
 - `pnpm db:migrate` — runs Prisma migrations against the API schema using `DATABASE_URL` from the root `.env`
 - `pnpm db:seed` — seeds development data through the API workspace Prisma seed script using the root `.env`
 - `pnpm db:studio` — opens Prisma Studio against the API schema using `DATABASE_URL` from the root `.env`

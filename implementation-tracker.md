@@ -3,7 +3,7 @@
 **Project:** Golf Cart Rental Management System
 **PRD Version:** 1.0
 **Last Updated:** 2026-04-11
-**Updated By:** Codex
+**Updated By:** PM / Architect
 
 ---
 
@@ -28,6 +28,10 @@
 | 2026-04-09 | Phase 1 — Foundation | Dev Postgres host port uses `5440` instead of PRD sample port `5432` | Local machine already has other Postgres instances bound to common ports | No |
 | 2026-04-09 | Phase 1 — Foundation | Added root `.env.example` and contributor `README.md` before the Phase 7 documentation milestone | User explicitly requested earlier contributor onboarding docs and environment setup guidance | No |
 | 2026-04-10 | Phase 2 — Auth & Multi-Tenancy | `POST /auth/login` and `POST /auth/customer/login` accept `organizationSlug` in the request body | Schema `@@unique([organizationId, email])` means email is not globally unique; tenant must be identified at login time. PRD rule "never `organizationId` in body" applies to protected routes only. | No |
+| 2026-04-11 | Phase 6 — Frontend | Added Design Foundation task group before App Foundation | PRD had no design system or component library tasks; required before any page work begins | No |
+| 2026-04-11 | Phase 6 — Frontend | Component library: shadcn/ui | Chosen for unstyled primitives, CSS variable theming compatibility, and Phase 2 runtime theming readiness | No |
+| 2026-04-11 | Phase 6 — Frontend | Design language: minimalist/Apple-inspired, neutral default palette, Inter font | Client direction; token system designed to support per-org runtime theming in Phase 2 with no component refactoring | No |
+| 2026-04-11 | Phase 6 — Frontend | Logo slot designed into sidebar from MVP | Org logo renders if available, falls back to org name text; `Organization.logoUrl` field to be added in Phase 2 alongside theming settings UI | No |
 
 ---
 
@@ -254,13 +258,32 @@
 ## Phase 6 — Frontend
 
 **Goal:** Fully functional web app for staff/admin operations and customer read-only portal.
-**Status:** Not started
-**Completed:** —
+**Status:** In progress
+**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline
 
 ### Tasks
 
-#### Foundation
-- [ ] Vite + React + TypeScript app scaffold
+#### Design Foundation
+- [x] Install and configure Tailwind CSS
+- [x] Install and configure shadcn/ui
+- [x] Add base shadcn components: `Button`, `Input`, `Select`, `Table`, `Badge`, `Card`, `Dialog`, `AlertDialog`, `DropdownMenu`, `Separator`, `Skeleton`, `Sonner`
+- [x] Configure `cn()` utility (`clsx` + `tailwind-merge`)
+- [x] Define CSS variable token set in `index.css` (colors, radius, shadows — per `DESIGN.md` section 2)
+- [x] Hardcode neutral default theme (zinc/slate scale)
+- [x] Install Inter font via `@fontsource/inter`
+- [x] Configure Tailwind typography scale (per `DESIGN.md` section 3)
+- [ ] Document token shape in `packages/shared` for Phase 2 runtime theming
+- [ ] Build `AppLayout` component (sidebar + main content area)
+- [ ] Build `Sidebar` component (logo slot, role-aware nav links, org name, user/logout)
+- [ ] Build `TopBar` component (page title, contextual action slot, user menu)
+- [ ] Build `PageWrapper` component (consistent padding, heading slot)
+- [ ] Build `StatusBadge` component (cart, rental, payment status → color map per `DESIGN.md` section 5)
+- [ ] Build `EmptyState` component (icon + heading + subtext + optional CTA)
+- [ ] Build `PageError` component (inline error card + retry button)
+- [x] Add `DESIGN.md` to `apps/web/` root
+
+#### App Foundation
+- [x] Vite + React + TypeScript app scaffold
 - [ ] React Router configured (role-based routing per PRD section 9)
 - [ ] Zustand store (auth state, current user/org)
 - [ ] TanStack Query configured (API client, caching)
@@ -319,6 +342,16 @@
 ### Notes
 > Add implementation notes, decisions, or issues here as tasks are completed.
 
+- 2026-04-11: Added Design Foundation task group based on PM/Architect direction. Design system must be established before any page work begins to ensure consistency across all 37 page/feature tasks.
+- 2026-04-11: Component library selected: shadcn/ui. Token system defined in `DESIGN.md` using CSS custom properties to support Phase 2 runtime per-org theming with zero component refactoring.
+- 2026-04-11: Design language confirmed: minimalist/Apple-inspired, neutral zinc/slate default palette, Inter font. Full conventions documented in `apps/web/DESIGN.md`.
+- 2026-04-11: Logo slot designed into sidebar from day one. MVP: renders env-var or hardcoded logo URL, falls back to org name text. Phase 2: loads from `Organization.logoUrl` set via settings UI.
+- 2026-04-11: Scaffolded `apps/web` with Vite + React + TypeScript (`index.html`, Vite config, TS configs, app entry files) and replaced the Phase 1 placeholder dev script.
+- 2026-04-11: Configured Tailwind + PostCSS + `tailwindcss-animate`, mapped utility colors/radius/shadows to `DESIGN.md` token variables in `src/index.css`, and wired Inter as the default font.
+- 2026-04-11: Installed and configured shadcn/ui with the required primitive set (`Button`, `Input`, `Select`, `Table`, `Badge`, `Card`, `Dialog`, `AlertDialog`, `DropdownMenu`, `Separator`, `Skeleton`, `Sonner`) plus the shared `cn()` helper in `src/lib/utils.ts`.
+- 2026-04-11: Updated `components.json` aliases to `src/*` paths after initial CLI generation emitted components to an incorrect literal `@/` directory; moved generated files into `src/components/ui`.
+- 2026-04-11: Validation: `pnpm --filter web build` passes; Vite dev server boots successfully via `pnpm --filter web dev`.
+
 ---
 
 ## Phase 7 — Production Deployment
@@ -350,9 +383,9 @@
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
 | Phase 4 — Rentals | Complete | 21 / 21 |
 | Phase 5 — Payments | Complete | 5 / 5 |
-| Phase 6 — Frontend | Not started | 0 / 37 |
+| Phase 6 — Frontend | In progress | 10 / 54 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **72 / 116** |
+| **Total** | | **82 / 133** |
 
 ---
 
