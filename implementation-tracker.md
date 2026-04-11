@@ -175,8 +175,8 @@
 ## Phase 4 — Rentals
 
 **Goal:** Full rental lifecycle working for both daily and lease rentals. Double-booking prevention enforced.
-**Status:** In progress
-**Completed:** Availability endpoint (`GET /carts/availability`) with overlap filtering and transaction-scoped query execution; Daily rental creation (`POST /rentals`) with snapshot pricing, overlap protection, and cart reservation; Lease rental creation and lease contract endpoints
+**Status:** Complete
+**Completed:** Availability endpoint (`GET /carts/availability`) with overlap filtering and transaction-scoped query execution; Daily rental creation (`POST /rentals`) with snapshot pricing, overlap protection, and cart reservation; Lease rental creation and lease contract endpoints; Rental action endpoints (`checkout`, `checkin`, `cancel`, list/detail/update)
 
 ### Tasks
 
@@ -202,12 +202,12 @@
 - [x] Cart blocked for full contract period
 
 #### Rental Actions
-- [ ] `POST /rentals/:id/checkout` — validate status, set cart to `rented`
-- [ ] `POST /rentals/:id/checkin` — set `actualReturnDate`, calculate final `totalAmount`, set cart to `available`
-- [ ] `POST /rentals/:id/cancel` — release cart to `available`, set rental to `cancelled`
-- [ ] `GET /rentals` — list rentals (filters: `?type=&status=&customerId=&cartId=`)
-- [ ] `GET /rentals/:id` — get rental detail
-- [ ] `PATCH /rentals/:id` — update rental (dates, notes)
+- [x] `POST /rentals/:id/checkout` — validate status, set cart to `rented`
+- [x] `POST /rentals/:id/checkin` — set `actualReturnDate`, calculate final `totalAmount`, set cart to `available`
+- [x] `POST /rentals/:id/cancel` — release cart to `available`, set rental to `cancelled`
+- [x] `GET /rentals` — list rentals (filters: `?type=&status=&customerId=&cartId=`)
+- [x] `GET /rentals/:id` — get rental detail
+- [x] `PATCH /rentals/:id` — update rental (dates, notes)
 
 ### Notes
 > Add implementation notes, decisions, or issues here as tasks are completed.
@@ -221,6 +221,9 @@
 - 2026-04-11: Extended `POST /rentals` to support lease rentals with `contractMonths` validation against `organization.minLeaseMonths` (`LEASE_MIN_MONTHS`), monthly rate snapshotting (`monthlyRateSnapshot`), total amount calculation (`monthlyRateSnapshot × contractMonths`), and contract-period end-date calculation.
 - 2026-04-11: Added lease contract endpoints (`POST /rentals/:id/contract`, `PATCH /rentals/:id/contract`, `GET /rentals/:id/contract`) with org-scoped rental checks and lease-only enforcement.
 - 2026-04-11: Added lease integration coverage for min-month validation, lease creation, and contract create/update/get flows; validated all lease APIs with live curls using seeded credentials.
+- 2026-04-11: Added rental action endpoints (`POST /rentals/:id/checkout`, `POST /rentals/:id/checkin`, `POST /rentals/:id/cancel`) with transactional status updates for both rental and cart, enforcing valid status transitions via `INVALID_STATUS_TRANSITION`.
+- 2026-04-11: Implemented rentals listing/detail/update (`GET /rentals`, `GET /rentals/:id`, `PATCH /rentals/:id`) with org scoping, filter support (`type`, `status`, `customerId`, `cartId`), shared pagination metadata, and overlap-safe date updates.
+- 2026-04-11: Verified rental actions with integration tests and live curls (create → checkout → checkin, create → cancel, list/detail/patch flow).
 
 ---
 
@@ -339,11 +342,11 @@
 | Phase 1 — Foundation | Complete | 9 / 9 |
 | Phase 2 — Auth & Multi-Tenancy | Complete | 13 / 13 |
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
-| Phase 4 — Rentals | In progress | 15 / 18 |
+| Phase 4 — Rentals | Complete | 21 / 21 |
 | Phase 5 — Payments | Not started | 0 / 5 |
 | Phase 6 — Frontend | Not started | 0 / 37 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **60 / 113** |
+| **Total** | | **67 / 116** |
 
 ---
 

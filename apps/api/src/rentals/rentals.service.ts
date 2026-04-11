@@ -9,10 +9,16 @@ import {
 import type { Prisma } from '@prisma/client';
 import { CartStatus, RentalStatus, RentalType } from 'shared';
 
+import {
+  buildPaginationMeta,
+  calculatePaginationOffset,
+} from '../common/pagination/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateLeaseContractDto } from './dto/create-lease-contract.dto';
 import type { CreateRentalDto } from './dto/create-rental.dto';
+import type { ListRentalsQueryDto } from './dto/list-rentals-query.dto';
 import type { UpdateLeaseContractDto } from './dto/update-lease-contract.dto';
+import type { UpdateRentalDto } from './dto/update-rental.dto';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -65,11 +71,63 @@ type RentalCartDetails = {
   };
 };
 
+type RentalForAction = {
+  id: string;
+  cartId: string;
+  type: RentalType;
+  status: RentalStatus;
+  startDate: Date;
+  endDate: Date;
+  dailyRateSnapshot: Prisma.Decimal | null;
+  monthlyRateSnapshot: Prisma.Decimal | null;
+  totalAmount: Prisma.Decimal | null;
+  cart: {
+    status: CartStatus;
+  };
+};
+
 @Injectable()
 export class RentalsService {
   private readonly logger = new Logger(RentalsService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  async listRentals(organizationId: string, query: ListRentalsQueryDto): Promise<{
+    rentals: RentalPublic[];
+    pagination: ReturnType<typeof buildPaginationMeta>;
+  }> {
+    const normalizedSearch = query.search?.trim() || undefined;
+    const where = this.buildListWhere(
+      organizationId,
+      normalizedSearch,
+      query.type,
+      query.status,
+      query.customerId,
+      query.cartId,
+    );
+    const offset = calculatePaginationOffset(query.page, query.pageSize);
+
+    const [totalItems, rentals] = await this.prisma.$transaction([
+      this.prisma.rental.count({ where }),
+      this.prisma.rental.findMany({
+        where,
+        skip: offset,
+        take: query.pageSize,
+        orderBy: { createdAt: 'desc' },
+        select: RENTAL_PUBLIC_SELECT,
+      }),
+    ]);
+
+    return {
+      rentals,
+      pagination: buildPaginationMeta({
+        page: query.page,
+        pageSize: query.pageSize,
+        totalItems,
+        search: normalizedSearch,
+      }),
+    };
+  }
 
   async createRental(
     organizationId: string,
@@ -310,13 +368,165 @@ export class RentalsService {
     return leaseContract;
   }
 
-  private calculateDailyDurationDays(startDate: Date, endDate: Date): number {
-    if (startDate >= endDate) {
-      throw new BadRequestException({
-        code: 'BAD_REQUEST',
-        message: 'startDate must be before endDate',
+  async getRentalById(organizationId: string, rentalId: string): Promise<RentalPublic> {
+    return this.findRentalForReadOrThrow(organizationId, rentalId);
+  }
+
+  async updateRental(
+    organizationId: string,
+    rentalId: string,
+    dto: UpdateRentalDto,
+  ): Promise<RentalPublic> {
+    this.logger.log(`Rental update initiated — org=${organizationId} rentalId=${rentalId}`);
+
+    return this.prisma.$transaction(async (tx) => {
+      const rental = await this.findRentalForUpdateOrThrow(tx, organizationId, rentalId);
+
+      const nextStartDate = dto.startDate ? new Date(dto.startDate) : rental.startDate;
+      const nextEndDate = dto.endDate ? new Date(dto.endDate) : rental.endDate;
+      const isDateUpdate = dto.startDate !== undefined || dto.endDate !== undefined;
+
+      if (isDateUpdate) {
+        if (rental.status !== RentalStatus.pending) {
+          throw new UnprocessableEntityException({
+            code: 'INVALID_STATUS_TRANSITION',
+            message: 'Only pending rentals can update dates',
+          });
+        }
+
+        this.ensureDateOrder(nextStartDate, nextEndDate);
+        await this.ensureNoRentalOverlap(
+          tx,
+          organizationId,
+          rental.cartId,
+          nextStartDate,
+          nextEndDate,
+          rental.id,
+        );
+      }
+
+      let nextTotalAmount = rental.totalAmount;
+
+      if (isDateUpdate && rental.type === RentalType.daily && rental.dailyRateSnapshot) {
+        const durationDays = this.calculateDailyDurationDays(nextStartDate, nextEndDate);
+        nextTotalAmount = rental.dailyRateSnapshot.mul(durationDays);
+      }
+
+      return tx.rental.update({
+        where: { id: rental.id },
+        data: {
+          startDate: isDateUpdate ? nextStartDate : undefined,
+          endDate: isDateUpdate ? nextEndDate : undefined,
+          notes: dto.notes,
+          totalAmount: nextTotalAmount ?? undefined,
+        },
+        select: RENTAL_PUBLIC_SELECT,
       });
-    }
+    });
+  }
+
+  async checkoutRental(
+    organizationId: string,
+    rentalId: string,
+  ): Promise<RentalPublic> {
+    this.logger.log(`Rental checkout initiated — org=${organizationId} rentalId=${rentalId}`);
+
+    return this.prisma.$transaction(async (tx) => {
+      const rental = await this.findRentalForActionOrThrow(tx, organizationId, rentalId);
+
+      if (rental.status !== RentalStatus.pending || rental.cart.status !== CartStatus.reserved) {
+        throw new UnprocessableEntityException({
+          code: 'INVALID_STATUS_TRANSITION',
+          message: 'Rental checkout transition not allowed',
+        });
+      }
+
+      const updatedRental = await tx.rental.update({
+        where: { id: rental.id },
+        data: { status: RentalStatus.active },
+        select: RENTAL_PUBLIC_SELECT,
+      });
+
+      await tx.cart.update({
+        where: { id: rental.cartId },
+        data: { status: CartStatus.rented },
+      });
+
+      return updatedRental;
+    });
+  }
+
+  async checkinRental(
+    organizationId: string,
+    rentalId: string,
+  ): Promise<RentalPublic> {
+    this.logger.log(`Rental checkin initiated — org=${organizationId} rentalId=${rentalId}`);
+
+    return this.prisma.$transaction(async (tx) => {
+      const rental = await this.findRentalForActionOrThrow(tx, organizationId, rentalId);
+
+      if (rental.status !== RentalStatus.active || rental.cart.status !== CartStatus.rented) {
+        throw new UnprocessableEntityException({
+          code: 'INVALID_STATUS_TRANSITION',
+          message: 'Rental checkin transition not allowed',
+        });
+      }
+
+      const actualReturnDate = new Date();
+      const finalTotalAmount = this.calculateFinalCheckinAmount(rental);
+
+      const updatedRental = await tx.rental.update({
+        where: { id: rental.id },
+        data: {
+          status: RentalStatus.completed,
+          actualReturnDate,
+          totalAmount: finalTotalAmount,
+        },
+        select: RENTAL_PUBLIC_SELECT,
+      });
+
+      await tx.cart.update({
+        where: { id: rental.cartId },
+        data: { status: CartStatus.available },
+      });
+
+      return updatedRental;
+    });
+  }
+
+  async cancelRental(
+    organizationId: string,
+    rentalId: string,
+  ): Promise<RentalPublic> {
+    this.logger.log(`Rental cancel initiated — org=${organizationId} rentalId=${rentalId}`);
+
+    return this.prisma.$transaction(async (tx) => {
+      const rental = await this.findRentalForActionOrThrow(tx, organizationId, rentalId);
+
+      if (rental.status !== RentalStatus.pending || rental.cart.status !== CartStatus.reserved) {
+        throw new UnprocessableEntityException({
+          code: 'INVALID_STATUS_TRANSITION',
+          message: 'Rental cancel transition not allowed',
+        });
+      }
+
+      const updatedRental = await tx.rental.update({
+        where: { id: rental.id },
+        data: { status: RentalStatus.cancelled },
+        select: RENTAL_PUBLIC_SELECT,
+      });
+
+      await tx.cart.update({
+        where: { id: rental.cartId },
+        data: { status: CartStatus.available },
+      });
+
+      return updatedRental;
+    });
+  }
+
+  private calculateDailyDurationDays(startDate: Date, endDate: Date): number {
+    this.ensureDateOrder(startDate, endDate);
 
     const durationMs = endDate.getTime() - startDate.getTime();
     const durationDays = durationMs / MS_PER_DAY;
@@ -329,6 +539,15 @@ export class RentalsService {
     }
 
     return durationDays;
+  }
+
+  private ensureDateOrder(startDate: Date, endDate: Date): void {
+    if (startDate >= endDate) {
+      throw new BadRequestException({
+        code: 'BAD_REQUEST',
+        message: 'startDate must be before endDate',
+      });
+    }
   }
 
   private calculateLeaseEndDate(startDate: Date, contractMonths: number): Date {
@@ -436,9 +655,11 @@ export class RentalsService {
     cartId: string,
     startDate: Date,
     endDate: Date,
+    excludeRentalId?: string,
   ): Promise<void> {
     const overlap = await tx.rental.findFirst({
       where: {
+        id: excludeRentalId ? { not: excludeRentalId } : undefined,
         cartId,
         organizationId,
         status: {
@@ -456,6 +677,161 @@ export class RentalsService {
         message: 'Dates overlap with an existing rental',
       });
     }
+  }
+
+  private calculateFinalCheckinAmount(rental: RentalForAction): Prisma.Decimal | null {
+    if (rental.type === RentalType.daily && rental.dailyRateSnapshot) {
+      const durationDays = this.calculateDailyDurationDays(rental.startDate, rental.endDate);
+      return rental.dailyRateSnapshot.mul(durationDays);
+    }
+
+    return rental.totalAmount;
+  }
+
+  private buildListWhere(
+    organizationId: string,
+    search?: string,
+    type?: RentalType,
+    status?: RentalStatus,
+    customerId?: string,
+    cartId?: string,
+  ): Prisma.RentalWhereInput {
+    if (!search) {
+      return {
+        organizationId,
+        type,
+        status,
+        customerId,
+        cartId,
+      };
+    }
+
+    return {
+      organizationId,
+      type,
+      status,
+      customerId,
+      cartId,
+      OR: [
+        { notes: { contains: search, mode: 'insensitive' } },
+        { customer: { name: { contains: search, mode: 'insensitive' } } },
+        { cart: { label: { contains: search, mode: 'insensitive' } } },
+      ],
+    };
+  }
+
+  private async findRentalForReadOrThrow(
+    organizationId: string,
+    rentalId: string,
+  ): Promise<RentalPublic> {
+    const rental = await this.prisma.rental.findFirst({
+      where: {
+        id: rentalId,
+        organizationId,
+      },
+      select: RENTAL_PUBLIC_SELECT,
+    });
+
+    if (!rental) {
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: 'Rental not found',
+      });
+    }
+
+    return rental;
+  }
+
+  private async findRentalForUpdateOrThrow(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    rentalId: string,
+  ): Promise<{
+    id: string;
+    cartId: string;
+    type: RentalType;
+    status: RentalStatus;
+    startDate: Date;
+    endDate: Date;
+    dailyRateSnapshot: Prisma.Decimal | null;
+    monthlyRateSnapshot: Prisma.Decimal | null;
+    totalAmount: Prisma.Decimal | null;
+  }> {
+    const rental = await tx.rental.findFirst({
+      where: {
+        id: rentalId,
+        organizationId,
+      },
+      select: {
+        id: true,
+        cartId: true,
+        type: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        dailyRateSnapshot: true,
+        monthlyRateSnapshot: true,
+        totalAmount: true,
+      },
+    });
+
+    if (!rental) {
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: 'Rental not found',
+      });
+    }
+
+    return {
+      ...rental,
+      type: rental.type as RentalType,
+      status: rental.status as RentalStatus,
+    };
+  }
+
+  private async findRentalForActionOrThrow(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    rentalId: string,
+  ): Promise<RentalForAction> {
+    const rental = await tx.rental.findFirst({
+      where: {
+        id: rentalId,
+        organizationId,
+      },
+      select: {
+        id: true,
+        cartId: true,
+        type: true,
+        status: true,
+        startDate: true,
+        endDate: true,
+        dailyRateSnapshot: true,
+        monthlyRateSnapshot: true,
+        totalAmount: true,
+        cart: {
+          select: {
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!rental) {
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: 'Rental not found',
+      });
+    }
+
+    return {
+      ...rental,
+      type: rental.type as RentalType,
+      status: rental.status as RentalStatus,
+      cart: {
+        status: rental.cart.status as CartStatus,
+      },
+    };
   }
 
   private async findLeaseRentalOrThrow(

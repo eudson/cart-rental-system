@@ -30,6 +30,8 @@ let baseUrl: string;
 let primaryOrgId: string;
 let primaryLocationId: string;
 let primaryCustomerId: string;
+let primaryCartTypeId: string;
+let primaryStaffUserId: string;
 let primaryAvailableCartId: string;
 let primaryUnavailableCartId: string;
 let primaryOverlapCartId: string;
@@ -92,6 +94,7 @@ before(async () => {
     select: { id: true },
   });
   assert.ok(createdBy?.id);
+  primaryStaffUserId = createdBy.id;
 
   const primaryLocation = await prisma.location.create({
     data: {
@@ -111,6 +114,7 @@ before(async () => {
       seatingCapacity: 2,
     },
   });
+  primaryCartTypeId = primaryCartType.id;
 
   const availableCart = await prisma.cart.create({
     data: {
@@ -268,6 +272,13 @@ interface LoginResponse {
   data: {
     accessToken: string;
   };
+}
+
+let actionSequence = 0;
+
+function nextActionLabel(prefix: string): string {
+  actionSequence += 1;
+  return `${prefix}-${actionSequence}`;
 }
 
 async function loginAs(email: string): Promise<string> {
@@ -633,4 +644,384 @@ test('GET /rentals/:id/contract — returns lease contract details', async () =>
     body.data.documentUrl,
     'https://files.example.com/contracts/lease-001.pdf',
   );
+});
+
+test('POST /rentals/:id/checkout — pending rental becomes active and cart becomes rented', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+
+  const actionCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      cartTypeId: primaryCartTypeId,
+      label: nextActionLabel('ACTION-CHECKOUT-CART'),
+      status: 'reserved',
+    },
+  });
+
+  const rental = await prisma.rental.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      customerId: primaryCustomerId,
+      cartId: actionCart.id,
+      createdById: primaryStaffUserId,
+      type: 'daily',
+      status: 'pending',
+      startDate: new Date('2026-10-01T00:00:00.000Z'),
+      endDate: new Date('2026-10-03T00:00:00.000Z'),
+      dailyRateSnapshot: 75,
+      totalAmount: 150,
+    },
+  });
+
+  const response = await fetch(`${baseUrl}/rentals/${rental.id}/checkout`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as { data: { id: string; status: string } };
+  assert.equal(body.data.id, rental.id);
+  assert.equal(body.data.status, 'active');
+
+  const updatedCart = await prisma.cart.findUnique({
+    where: { id: actionCart.id },
+    select: { status: true },
+  });
+  assert.equal(updatedCart?.status, 'rented');
+});
+
+test('POST /rentals/:id/checkout — invalid status transition returns INVALID_STATUS_TRANSITION', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+
+  const actionCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      cartTypeId: primaryCartTypeId,
+      label: nextActionLabel('ACTION-CHECKOUT-INVALID-CART'),
+      status: 'rented',
+    },
+  });
+
+  const rental = await prisma.rental.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      customerId: primaryCustomerId,
+      cartId: actionCart.id,
+      createdById: primaryStaffUserId,
+      type: 'daily',
+      status: 'active',
+      startDate: new Date('2026-10-04T00:00:00.000Z'),
+      endDate: new Date('2026-10-06T00:00:00.000Z'),
+      dailyRateSnapshot: 75,
+      totalAmount: 150,
+    },
+  });
+
+  const response = await fetch(`${baseUrl}/rentals/${rental.id}/checkout`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  assert.equal(response.status, 422);
+  const body = (await response.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'INVALID_STATUS_TRANSITION');
+});
+
+test('POST /rentals/:id/checkin — active rental becomes completed and cart becomes available', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+
+  const actionCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      cartTypeId: primaryCartTypeId,
+      label: nextActionLabel('ACTION-CHECKIN-CART'),
+      status: 'rented',
+    },
+  });
+
+  const rental = await prisma.rental.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      customerId: primaryCustomerId,
+      cartId: actionCart.id,
+      createdById: primaryStaffUserId,
+      type: 'daily',
+      status: 'active',
+      startDate: new Date('2026-10-07T00:00:00.000Z'),
+      endDate: new Date('2026-10-09T00:00:00.000Z'),
+      dailyRateSnapshot: 75,
+      totalAmount: 150,
+    },
+  });
+
+  const response = await fetch(`${baseUrl}/rentals/${rental.id}/checkin`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as {
+    data: { id: string; status: string; actualReturnDate: string | null; totalAmount: string | null };
+  };
+  assert.equal(body.data.id, rental.id);
+  assert.equal(body.data.status, 'completed');
+  assert.ok(body.data.actualReturnDate);
+  assert.equal(body.data.totalAmount, '150');
+
+  const updatedCart = await prisma.cart.findUnique({
+    where: { id: actionCart.id },
+    select: { status: true },
+  });
+  assert.equal(updatedCart?.status, 'available');
+});
+
+test('POST /rentals/:id/cancel — pending rental becomes cancelled and cart becomes available', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+
+  const actionCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      cartTypeId: primaryCartTypeId,
+      label: nextActionLabel('ACTION-CANCEL-CART'),
+      status: 'reserved',
+    },
+  });
+
+  const rental = await prisma.rental.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      customerId: primaryCustomerId,
+      cartId: actionCart.id,
+      createdById: primaryStaffUserId,
+      type: 'daily',
+      status: 'pending',
+      startDate: new Date('2026-10-10T00:00:00.000Z'),
+      endDate: new Date('2026-10-12T00:00:00.000Z'),
+      dailyRateSnapshot: 75,
+      totalAmount: 150,
+    },
+  });
+
+  const response = await fetch(`${baseUrl}/rentals/${rental.id}/cancel`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as { data: { id: string; status: string } };
+  assert.equal(body.data.id, rental.id);
+  assert.equal(body.data.status, 'cancelled');
+
+  const updatedCart = await prisma.cart.findUnique({
+    where: { id: actionCart.id },
+    select: { status: true },
+  });
+  assert.equal(updatedCart?.status, 'available');
+});
+
+test('GET /rentals — supports filters and pagination metadata', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+
+  const actionCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      cartTypeId: primaryCartTypeId,
+      label: nextActionLabel('ACTION-LIST-CART'),
+      status: 'reserved',
+    },
+  });
+
+  await prisma.rental.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      customerId: primaryCustomerId,
+      cartId: actionCart.id,
+      createdById: primaryStaffUserId,
+      type: 'daily',
+      status: 'pending',
+      startDate: new Date('2026-10-13T00:00:00.000Z'),
+      endDate: new Date('2026-10-15T00:00:00.000Z'),
+      dailyRateSnapshot: 75,
+      totalAmount: 150,
+      notes: 'action-list-target',
+    },
+  });
+
+  const response = await fetch(
+    `${baseUrl}/rentals?page=1&pageSize=10&search=action-list-target&type=daily&status=pending&customerId=${primaryCustomerId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as {
+    data: Array<{ id: string; type: string; status: string; notes: string | null }>;
+    meta: { pagination: { totalItems: number; search: string | null } };
+  };
+
+  assert.ok(body.data.length >= 1);
+  assert.equal(body.data[0]?.type, 'daily');
+  assert.equal(body.data[0]?.status, 'pending');
+  assert.equal(body.meta.pagination.search, 'action-list-target');
+  assert.ok(body.meta.pagination.totalItems >= 1);
+});
+
+test('GET /rentals/:id — returns rental details for same org', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+
+  const actionCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      cartTypeId: primaryCartTypeId,
+      label: nextActionLabel('ACTION-DETAIL-CART'),
+      status: 'reserved',
+    },
+  });
+
+  const rental = await prisma.rental.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      customerId: primaryCustomerId,
+      cartId: actionCart.id,
+      createdById: primaryStaffUserId,
+      type: 'daily',
+      status: 'pending',
+      startDate: new Date('2026-10-16T00:00:00.000Z'),
+      endDate: new Date('2026-10-18T00:00:00.000Z'),
+      dailyRateSnapshot: 75,
+      totalAmount: 150,
+      notes: 'action-detail-target',
+    },
+  });
+
+  const response = await fetch(`${baseUrl}/rentals/${rental.id}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as { data: { id: string; notes: string | null } };
+  assert.equal(body.data.id, rental.id);
+  assert.equal(body.data.notes, 'action-detail-target');
+});
+
+test('PATCH /rentals/:id — updates pending rental dates, notes, and total amount', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+
+  const actionCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      cartTypeId: primaryCartTypeId,
+      label: nextActionLabel('ACTION-PATCH-CART'),
+      status: 'reserved',
+    },
+  });
+
+  const rental = await prisma.rental.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      customerId: primaryCustomerId,
+      cartId: actionCart.id,
+      createdById: primaryStaffUserId,
+      type: 'daily',
+      status: 'pending',
+      startDate: new Date('2026-10-19T00:00:00.000Z'),
+      endDate: new Date('2026-10-21T00:00:00.000Z'),
+      dailyRateSnapshot: 75,
+      totalAmount: 150,
+      notes: 'old patch notes',
+    },
+  });
+
+  const response = await fetch(`${baseUrl}/rentals/${rental.id}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      endDate: '2026-10-22T00:00:00.000Z',
+      notes: 'new patch notes',
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as {
+    data: { id: string; endDate: string; notes: string | null; totalAmount: string | null };
+  };
+  assert.equal(body.data.id, rental.id);
+  assert.equal(body.data.endDate, '2026-10-22T00:00:00.000Z');
+  assert.equal(body.data.notes, 'new patch notes');
+  assert.equal(body.data.totalAmount, '225');
+});
+
+test('PATCH /rentals/:id — active rental date update returns INVALID_STATUS_TRANSITION', async () => {
+  const token = await loginAs(STAFF_EMAIL);
+
+  const actionCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      cartTypeId: primaryCartTypeId,
+      label: nextActionLabel('ACTION-PATCH-ACTIVE-CART'),
+      status: 'rented',
+    },
+  });
+
+  const rental = await prisma.rental.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      customerId: primaryCustomerId,
+      cartId: actionCart.id,
+      createdById: primaryStaffUserId,
+      type: 'daily',
+      status: 'active',
+      startDate: new Date('2026-10-23T00:00:00.000Z'),
+      endDate: new Date('2026-10-25T00:00:00.000Z'),
+      dailyRateSnapshot: 75,
+      totalAmount: 150,
+    },
+  });
+
+  const response = await fetch(`${baseUrl}/rentals/${rental.id}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      endDate: '2026-10-26T00:00:00.000Z',
+    }),
+  });
+
+  assert.equal(response.status, 422);
+  const body = (await response.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'INVALID_STATUS_TRANSITION');
 });
