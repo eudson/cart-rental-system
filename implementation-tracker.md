@@ -259,7 +259,7 @@
 
 **Goal:** Fully functional web app for staff/admin operations and customer read-only portal.
 **Status:** In progress
-**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata, Zustand auth store baseline with current user/org state
+**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata, Zustand auth store baseline with current user/org state, TanStack Query provider with API client and cache defaults
 
 ### Tasks
 
@@ -286,7 +286,7 @@
 - [x] Vite + React + TypeScript app scaffold
 - [x] React Router configured (role-based routing per PRD section 9)
 - [x] Zustand store (auth state, current user/org)
-- [ ] TanStack Query configured (API client, caching)
+- [x] TanStack Query configured (API client, caching)
 - [ ] API service layer (typed, uses shared DTOs)
 - [ ] Auth route guard (redirect if not authenticated)
 - [ ] Role-based route protection (redirect if insufficient role)
@@ -359,6 +359,9 @@
 - 2026-04-11: Updated `src/App.tsx` to mount `RouterProvider`, added `react-router-dom` back to `apps/web` dependencies, and aligned settings link visibility in `Sidebar` to PRD `org_admin only`.
 - 2026-04-11: Added `src/store/auth-store.ts` using Zustand to centralize auth/session state, including `isAuthenticated`, token fields, session type (`staff`/`customer`), `currentOrganization`, `currentUser`, and `currentCustomer`.
 - 2026-04-11: Added explicit session actions (`setStaffSession`, `setCustomerSession`, `setAccessToken`, `setRefreshToken`, `setCurrentOrganization`, `clearAuthState`) and wired router scaffold pages to consume current user/org/customer values from the store with safe fallbacks.
+- 2026-04-11: Added TanStack Query foundation with `src/providers/app-providers.tsx` and `src/services/query-client.ts`, including default caching/retry behavior (`staleTime=30s`, `gcTime=5m`, no mutation retries, no refetch-on-focus).
+- 2026-04-11: Added `src/services/api-client.ts` as the shared request utility for React Query usage, with typed API envelope handling, auth token injection from Zustand, and normalized `ApiClientError` for retry logic.
+- 2026-04-11: Updated `src/App.tsx` to wrap routing with `QueryClientProvider` and added typed `VITE_API_BASE_URL` support in `src/vite-env.d.ts`.
 
 ---
 
@@ -391,9 +394,9 @@
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
 | Phase 4 — Rentals | Complete | 21 / 21 |
 | Phase 5 — Payments | Complete | 5 / 5 |
-| Phase 6 — Frontend | In progress | 20 / 54 |
+| Phase 6 — Frontend | In progress | 21 / 54 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **92 / 133** |
+| **Total** | | **93 / 133** |
 
 ---
 
