@@ -49,6 +49,27 @@ const RENTAL_PUBLIC_SELECT = {
   notes: true,
   createdAt: true,
   updatedAt: true,
+  customer: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  cart: {
+    select: {
+      id: true,
+      label: true,
+      status: true,
+      cartTypeId: true,
+    },
+  },
+  location: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
 } satisfies Prisma.RentalSelect;
 
 type RentalPublic = Prisma.RentalGetPayload<{
@@ -131,6 +152,8 @@ export class RentalsService {
       query.status,
       query.customerId,
       query.cartId,
+      query.startDateFrom,
+      query.endDateTo,
     );
     const offset = calculatePaginationOffset(query.page, query.pageSize);
 
@@ -822,7 +845,14 @@ export class RentalsService {
     status?: RentalStatus,
     customerId?: string,
     cartId?: string,
+    startDateFrom?: string,
+    endDateTo?: string,
   ): Prisma.RentalWhereInput {
+    const dateFilter: Prisma.RentalWhereInput = {
+      endDate: startDateFrom ? { gte: new Date(startDateFrom) } : undefined,
+      startDate: endDateTo ? { lte: new Date(endDateTo) } : undefined,
+    };
+
     if (!search) {
       return {
         organizationId,
@@ -830,6 +860,7 @@ export class RentalsService {
         status,
         customerId,
         cartId,
+        ...dateFilter,
       };
     }
 
@@ -839,6 +870,7 @@ export class RentalsService {
       status,
       customerId,
       cartId,
+      ...dateFilter,
       OR: [
         { notes: { contains: search, mode: 'insensitive' } },
         { customer: { name: { contains: search, mode: 'insensitive' } } },

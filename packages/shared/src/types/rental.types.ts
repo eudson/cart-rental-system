@@ -1,5 +1,24 @@
 import { RentalStatus } from '../enums/rental-status.enum';
 import { RentalType } from '../enums/rental-type.enum';
+import { CartStatus } from '../enums/cart-status.enum';
+
+export interface RentalCustomerSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface RentalCartSummary {
+  id: string;
+  label: string;
+  status: CartStatus;
+  cartTypeId: string;
+}
+
+export interface RentalLocationSummary {
+  id: string;
+  name: string;
+}
 
 export interface Rental {
   id: string;
@@ -19,6 +38,9 @@ export interface Rental {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  customer: RentalCustomerSummary;
+  cart: RentalCartSummary;
+  location: RentalLocationSummary;
 }
 
 export interface LeaseContract {

@@ -1,4 +1,5 @@
 import type {
+  CreateRentalRequestDto,
   CreateRentalPaymentRequestDto,
   Payment,
   PaginationMeta,
@@ -30,6 +31,13 @@ export async function listRentals(query: ListRentalsQueryDto): Promise<ListRenta
 
 export async function getRentalById(rentalId: string): Promise<Rental> {
   return apiRequest<Rental>(`/rentals/${rentalId}`);
+}
+
+export async function createRental(dto: CreateRentalRequestDto): Promise<Rental> {
+  return apiRequest<Rental, CreateRentalRequestDto>('/rentals', {
+    method: 'POST',
+    body: dto,
+  });
 }
 
 export async function listRentalPayments(

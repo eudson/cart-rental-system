@@ -9,6 +9,18 @@ export interface ListRentalsQueryDto extends PaginationQueryDto {
   status?: RentalStatus;
   customerId?: string;
   cartId?: string;
+  startDateFrom?: string;
+  endDateTo?: string;
+}
+
+export interface CreateRentalRequestDto {
+  type: RentalType;
+  customerId: string;
+  cartId: string;
+  startDate: string;
+  endDate?: string;
+  contractMonths?: number;
+  notes?: string;
 }
 
 export interface ListRentalPaymentsQueryDto extends PaginationQueryDto {}

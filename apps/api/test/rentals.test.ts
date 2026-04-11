@@ -915,7 +915,7 @@ test('GET /rentals — supports filters and pagination metadata', async () => {
   });
 
   const response = await fetch(
-    `${baseUrl}/rentals?page=1&pageSize=10&search=action-list-target&type=daily&status=pending&customerId=${primaryCustomerId}`,
+    `${baseUrl}/rentals?page=1&pageSize=10&search=action-list-target&type=daily&status=pending&customerId=${primaryCustomerId}&startDateFrom=2026-10-14T00:00:00.000Z&endDateTo=2026-10-16T23:59:59.999Z`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -925,13 +925,25 @@ test('GET /rentals — supports filters and pagination metadata', async () => {
 
   assert.equal(response.status, 200);
   const body = (await response.json()) as {
-    data: Array<{ id: string; type: string; status: string; notes: string | null }>;
+    data: Array<{
+      id: string;
+      type: string;
+      status: string;
+      notes: string | null;
+      customer: { id: string; name: string; email: string };
+      cart: { id: string; label: string };
+      location: { id: string; name: string };
+    }>;
     meta: { pagination: { totalItems: number; search: string | null } };
   };
 
   assert.ok(body.data.length >= 1);
   assert.equal(body.data[0]?.type, 'daily');
   assert.equal(body.data[0]?.status, 'pending');
+  assert.equal(body.data[0]?.customer.id, primaryCustomerId);
+  assert.equal(body.data[0]?.customer.name, 'Primary Rental Customer');
+  assert.equal(body.data[0]?.cart.label, actionCart.label);
+  assert.equal(body.data[0]?.location.name, 'Primary Rentals Yard');
   assert.equal(body.meta.pagination.search, 'action-list-target');
   assert.ok(body.meta.pagination.totalItems >= 1);
 });

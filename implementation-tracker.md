@@ -32,6 +32,7 @@
 | 2026-04-11 | Phase 6 — Frontend | Component library: shadcn/ui | Chosen for unstyled primitives, CSS variable theming compatibility, and Phase 2 runtime theming readiness | No |
 | 2026-04-11 | Phase 6 — Frontend | Design language: minimalist/Apple-inspired, neutral default palette, Inter font | Client direction; token system designed to support per-org runtime theming in Phase 2 with no component refactoring | No |
 | 2026-04-11 | Phase 6 — Frontend | Logo slot designed into sidebar from MVP | Org logo renders if available, falls back to org name text; `Organization.logoUrl` field to be added in Phase 2 alongside theming settings UI | No |
+| 2026-04-11 | Phase 6 — Frontend | Dashboard expanded beyond PRD four-widget summary into owner-oriented overview with fleet mix, action queue, and capacity signals | User explicitly requested a more decision-useful owner dashboard instead of the simpler operational summary in the PRD | No |
 
 ---
 
@@ -259,7 +260,7 @@
 
 **Goal:** Fully functional web app for staff/admin operations and customer read-only portal.
 **Status:** In progress
-**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata, Zustand auth store baseline with current user/org state, TanStack Query provider with API client and cache defaults, typed API auth service layer backed by shared DTO contracts, auth route guard redirects, role-based route protection, staff/admin login page, customer portal login page, carts list/register/detail pages, customers list/create/detail pages, payment recording form and payment list on rental detail
+**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata, Zustand auth store baseline with current user/org state, TanStack Query provider with API client and cache defaults, typed API auth service layer backed by shared DTO contracts, auth route guard redirects, role-based route protection, staff/admin login page, customer portal login page, owner dashboard overview, carts list/register/detail pages, customers list/create/detail pages, rentals list page, multi-step new rental flow, payment recording form and payment list on rental detail
 
 ### Tasks
 
@@ -296,10 +297,10 @@
 - [x] Customer portal login page (`/portal/login`)
 
 #### Dashboard
-- [ ] Today's active rentals count
-- [ ] Cart status summary (available / rented / reserved / retired)
-- [ ] Upcoming check-ins today
-- [ ] Upcoming check-outs today
+- [x] Today's active rentals count
+- [x] Cart status summary (available / rented / reserved / retired)
+- [x] Upcoming check-ins today
+- [x] Upcoming check-outs today
 
 #### Carts
 - [x] Carts list page (status badges, filters)
@@ -312,12 +313,12 @@
 - [x] Create customer form
 
 #### Rentals
-- [ ] Rentals list page (filters: type, status, date range)
+- [x] Rentals list page (filters: type, status, date range)
 - [ ] New rental flow:
-  - [ ] Step 1 — Select customer
-  - [ ] Step 2 — Availability check (date/type input → available carts returned)
-  - [ ] Step 3 — Select cart
-  - [ ] Step 4 — Confirm + create rental
+  - [x] Step 1 — Select customer
+  - [x] Step 2 — Availability check (date/type input → available carts returned)
+  - [x] Step 3 — Select cart
+  - [x] Step 4 — Confirm + create rental
 - [ ] Rental detail page (status, contract if lease, payments)
 - [ ] Check-out confirmation screen
 - [ ] Check-in confirmation screen (shows calculated total)
@@ -375,6 +376,13 @@
 - 2026-04-11: Implemented payment management on rental detail route (`/rentals/:id`) with manual payment recording form and paginated payment records table.
 - 2026-04-11: Validation: `pnpm --filter web build` passes after Carts/Customers/Payments implementation.
 - 2026-04-11: Fixed cart registration validation mismatch where existing legacy seed ids (e.g., `seed-cart-type-001`) were rejected as non-UUID; carts DTO/query id validators now accept non-empty string ids to match persisted data shape, and cart endpoints no longer require UUID path params.
+- 2026-04-11: Added a dedicated owner-oriented dashboard API endpoint (`GET /dashboard/overview`) plus shared contract types so the frontend can render a single overview request instead of composing partial data from multiple paginated list endpoints.
+- 2026-04-11: Replaced the placeholder `/dashboard` route with an owner dashboard showing fleet utilization, inventory availability, rental mix, payment attention, today's action queue, and capacity breakdowns by location and cart type.
+- 2026-04-11: Validation: `pnpm --filter api build`, `node --test apps/api/dist/test/dashboard.test.js`, and `pnpm --filter web build` all pass. Vite still reports the existing chunk-size warning for the main bundle; no functional build failure.
+- 2026-04-11: Replaced the placeholder `/rentals` route with a real rentals list page, including search, type/status filters, date-range filtering, pagination, and links into rental detail.
+- 2026-04-11: Implemented `/rentals/new` as a four-step workflow: customer selection, rental-window setup, availability lookup through `GET /carts/availability`, and confirm/create with API-backed daily and lease creation.
+- 2026-04-11: Expanded the rentals API contract used by the frontend so list responses include customer/cart/location summaries and support overlap-style date filtering (`startDateFrom`, `endDateTo`) without requiring multiple client-side lookup requests.
+- 2026-04-11: Validation: `pnpm --filter api build`, `node --test apps/api/dist/test/rentals.test.js`, and `pnpm --filter web build` all pass. Vite still reports the existing chunk-size warning for the main bundle; no functional build failure.
 
 ---
 

@@ -1,6 +1,7 @@
 import type {
   Cart,
   CreateCartRequestDto,
+  ListCartAvailabilityQueryDto,
   ListCartsQueryDto,
   PaginationMeta,
 } from 'shared';
@@ -30,4 +31,10 @@ export async function createCart(dto: CreateCartRequestDto): Promise<Cart> {
 
 export async function getCartById(cartId: string): Promise<Cart> {
   return apiRequest<Cart>(`/carts/${cartId}`);
+}
+
+export async function listAvailableCarts(
+  query: ListCartAvailabilityQueryDto,
+): Promise<Cart[]> {
+  return apiRequest<Cart[]>(`/carts/availability${buildQueryString(query)}`);
 }

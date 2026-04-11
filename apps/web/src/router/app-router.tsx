@@ -9,7 +9,10 @@ import { CartDetailPage } from '@/pages/carts/cart-detail-page';
 import { CartsListPage } from '@/pages/carts/carts-list-page';
 import { CustomerDetailPage } from '@/pages/customers/customer-detail-page';
 import { CustomersListPage } from '@/pages/customers/customers-list-page';
+import { DashboardPage } from '@/pages/dashboard/dashboard-page';
+import { NewRentalPage } from '@/pages/rentals/new-rental-page';
 import { RentalDetailPage } from '@/pages/rentals/rental-detail-page';
+import { RentalsListPage } from '@/pages/rentals/rentals-list-page';
 import { useAuthStore } from '@/store/auth-store';
 
 const STAFF_AND_ADMIN_ROLES = [
@@ -140,11 +143,7 @@ const appRouter = createBrowserRouter([
   buildRoute('/portal/login', <CustomerLoginPage />, ['public']),
   buildRoute(
     '/dashboard',
-    <StaffRoutePage
-      title="Dashboard"
-      description="Operations overview for active rentals, cart status, and today’s check-ins/check-outs."
-      currentPath="/dashboard"
-    />,
+    <DashboardPage />,
     STAFF_AND_ADMIN_ROLES,
   ),
   buildRoute(
@@ -169,20 +168,12 @@ const appRouter = createBrowserRouter([
   ),
   buildRoute(
     '/rentals',
-    <StaffRoutePage
-      title="Rentals"
-      description="Rental list with filters and lifecycle actions."
-      currentPath="/rentals"
-    />,
+    <RentalsListPage />,
     STAFF_AND_ADMIN_ROLES,
   ),
   buildRoute(
     '/rentals/new',
-    <StaffRoutePage
-      title="New Rental"
-      description="Multi-step rental creation flow route."
-      currentPath="/rentals"
-    />,
+    <NewRentalPage />,
     STAFF_AND_ADMIN_ROLES,
   ),
   buildRoute(

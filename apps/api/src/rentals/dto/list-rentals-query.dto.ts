@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
 import { RentalStatus, RentalType } from 'shared';
 
 import { PaginationQueryDto } from '../../common/pagination/pagination-query.dto';
@@ -24,4 +24,14 @@ export class ListRentalsQueryDto extends PaginationQueryDto {
   @Type(() => String)
   @IsUUID()
   cartId?: string;
+
+  @IsOptional()
+  @Type(() => String)
+  @IsDateString()
+  startDateFrom?: string;
+
+  @IsOptional()
+  @Type(() => String)
+  @IsDateString()
+  endDateTo?: string;
 }
