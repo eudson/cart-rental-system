@@ -34,9 +34,9 @@ export function formatCurrency(value: string | null): string {
     return value;
   }
 
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-ZA', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'ZAR',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(numericValue);
