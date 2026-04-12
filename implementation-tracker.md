@@ -33,6 +33,7 @@
 | 2026-04-11 | Phase 6 — Frontend | Design language: minimalist/Apple-inspired, neutral default palette, Inter font | Client direction; token system designed to support per-org runtime theming in Phase 2 with no component refactoring | No |
 | 2026-04-11 | Phase 6 — Frontend | Logo slot designed into sidebar from MVP | Org logo renders if available, falls back to org name text; `Organization.logoUrl` field to be added in Phase 2 alongside theming settings UI | No |
 | 2026-04-11 | Phase 6 — Frontend | Dashboard expanded beyond PRD four-widget summary into owner-oriented overview with fleet mix, action queue, and capacity signals | User explicitly requested a more decision-useful owner dashboard instead of the simpler operational summary in the PRD | No |
+| 2026-04-12 | Phase 6 — Frontend | Dashboard redesigned from single-view into four-tab layout (Overview, Inventory, Daily Rentals, Leases) with payment-risk-first information hierarchy | Initial dashboard was operationally confusing; owner's primary need is financial visibility (outstanding bills, at-risk payments, contact details) not fleet status counts | No |
 
 ---
 
@@ -259,8 +260,8 @@
 ## Phase 6 — Frontend
 
 **Goal:** Fully functional web app for staff/admin operations and customer read-only portal.
-**Status:** Complete
-**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata, Zustand auth store baseline with current user/org state, TanStack Query provider with API client and cache defaults, typed API auth service layer backed by shared DTO contracts, auth route guard redirects, role-based route protection, staff/admin login page, customer portal login page, owner dashboard overview, carts list/register/detail pages, customers list/create/detail pages, rentals list page, multi-step new rental flow, payment recording form and payment list on rental detail, customer portal rentals list, customer portal rental detail (with lease contract section and payment records), settings organization view, locations CRUD, cart types CRUD, users CRUD
+**Status:** In progress
+**Completed:** Vite + React + TypeScript app scaffold, Tailwind CSS configuration, shadcn/ui setup, base shadcn component primitives, shared `cn()` utility, CSS variable token baseline, neutral default theme wiring, Inter font integration, Tailwind typography baseline, shared runtime theme token contract in `packages/shared`, AppLayout/Sidebar/TopBar/PageWrapper shell components, StatusBadge, EmptyState, PageError, React Router path map and route metadata, Zustand auth store baseline with current user/org state, TanStack Query provider with API client and cache defaults, typed API auth service layer backed by shared DTO contracts, auth route guard redirects, role-based route protection, staff/admin login page, customer portal login page, carts list/register/detail pages, customers list/create/detail pages, rentals list page, multi-step new rental flow, payment recording form and payment list on rental detail, customer portal rentals list, customer portal rental detail (with lease contract section and payment records), settings organization view, locations CRUD, cart types CRUD, users CRUD
 
 ### Tasks
 
@@ -297,10 +298,21 @@
 - [x] Customer portal login page (`/portal/login`)
 
 #### Dashboard
-- [x] Today's active rentals count
-- [x] Cart status summary (available / rented / reserved / retired)
-- [x] Upcoming check-ins today
-- [x] Upcoming check-outs today
+- [ ] Replace current single-view dashboard with tabbed layout (`Overview`, `Inventory`, `Daily Rentals`, `Leases`)
+- [ ] **Tab: Overview** — financial health cards row (Total Outstanding, Overdue 30+ days, Ending This Month Unpaid, Paid This Month)
+- [ ] **Tab: Overview** — fleet snapshot cards row (Fleet Utilization %, Available, Reserved, Rented, Retired)
+- [ ] **Tab: Overview** — action queue panels (Check-outs Today, Check-ins Today, Overdue Returns) with per-item links to rental detail and pre-filtered rental list
+- [ ] **Tab: Inventory** — summary cards (Available, Reserved, Rented, Retired counts)
+- [ ] **Tab: Inventory** — Capacity by Location table (Name, Total, Available, Reserved, Rented, Retired)
+- [ ] **Tab: Inventory** — Capacity by Cart Type table (same columns)
+- [ ] **Tab: Daily Rentals** — summary cards (Active, Unpaid amount+count, Partial amount+count, Overdue Returns count)
+- [ ] **Tab: Daily Rentals** — at-risk payments table sorted by risk (overdue+unpaid first, ending soon second, partial third, then balance desc) with inline Record Payment, View Rental, and Contact actions
+- [ ] **Tab: Daily Rentals** — all daily rentals table (paginated, filterable by status)
+- [ ] **Tab: Leases** — summary cards (Active Leases, Unpaid This Month amount+count, Ending This Month count, Outstanding Total amount)
+- [ ] **Tab: Leases** — at-risk payments table (same pattern as Daily Rentals, with additional Months Remaining column)
+- [ ] **Tab: Leases** — all leases table (paginated)
+- [ ] Update `GET /dashboard/overview` API endpoint to include payment risk data (outstanding total, overdue 30+ days, ending-soon unpaid, paid MTD)
+- [ ] Contact action: show customer phone + email inline (tooltip or expand row) — no new page required
 
 #### Carts
 - [x] Carts list page (status badges, filters)
@@ -396,6 +408,7 @@
 - 2026-04-11: Added 13 integration tests in `apps/api/test/portal.test.ts` covering: auth rejection (unauthenticated, staff JWT), own-only scoping, cross-customer isolation, status filter, pagination meta, detail access, contract 404 for daily rentals, and payments list. All 13 pass.
 - 2026-04-12: Implemented 4 Settings pages (org_admin only): Organization (read-only display from auth store — PRD permission matrix org_admin=Read own), Locations (full CRUD via GET/POST/PATCH /locations), Cart Types (full CRUD including DELETE via GET/POST/PATCH/DELETE /cart-types), Users (full CRUD + soft-delete via GET/POST/PATCH/DELETE /users). Extended `locations-service.ts` and `cart-types-service.ts` with mutation functions; created `users-service.ts`. All 4 settings router stubs replaced with real page components.
 - 2026-04-12: Validation: `pnpm --filter web build` passes (0 errors, 0 TS errors).
+- 2026-04-12: Dashboard redesigned from single-view to four-tab layout (Overview, Inventory, Daily Rentals, Leases). Payment risk is now the primary information hierarchy — outstanding totals, overdue 30+ days, at-risk tables with inline Record Payment / View Rental / Contact actions. Fleet and ops data moved to dedicated tabs. Old single-view dashboard tasks marked incomplete and replaced with new task set. See DESIGN.md section 10 for dashboard pattern conventions.
 
 ---
 
@@ -428,9 +441,9 @@
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
 | Phase 4 — Rentals | Complete | 21 / 21 |
 | Phase 5 — Payments | Complete | 5 / 5 |
-| Phase 6 — Frontend | Complete | 42 / 54 |
+| Phase 6 — Frontend | In progress | 38 / 65 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **114 / 133** |
+| **Total** | | **110 / 148** |
 
 ---
 

@@ -359,5 +359,75 @@ Links invisible to the current role are not rendered — not disabled, not hidde
 
 ---
 
+## 10. Dashboard Pattern
+
+The dashboard uses a **tabbed layout** with four tabs: `Overview`, `Inventory`, `Daily Rentals`, `Leases`. Tabs are rendered using shadcn `Tabs` / `TabsList` / `TabsTrigger` / `TabsContent`.
+
+### Tab conventions
+- Tab bar sits directly below the `PageWrapper` heading, above all content
+- Active tab: `text-foreground` + bottom border `2px solid var(--color-primary)`
+- Inactive tab: `text-foreground-muted`, hover `text-foreground`
+- Tab content area uses the standard `gap-6` section spacing
+
+### Financial health cards
+Used in Overview and per-rental-type tabs. Always appear as the **first row**.
+
+- Four cards in a `grid grid-cols-4 gap-4`
+- Each card: label (caption style, uppercase), large value (`text-3xl font-semibold`), subtext (caption, muted)
+- Cards showing monetary amounts: always include currency symbol, formatted with thousands separator
+- Cards showing a problem state (overdue, unpaid): label and value use `--color-status-unpaid` (red) when count > 0
+- Cards showing a healthy state (paid MTD): label and value use `--color-status-completed` (green)
+- Cards with neutral counts (active, total): use `--color-foreground` (default)
+
+### At-risk payments table
+Used in Daily Rentals and Leases tabs. Appears as the **second section**, below summary cards.
+
+**Section heading:** "Payment Attention Required" — `text-lg font-medium` + count badge
+
+**Sort order (applied client-side from API data):**
+1. `paymentStatus = unpaid` AND `endDate < today` — overdue and unpaid (highest risk)
+2. `paymentStatus = unpaid` AND `endDate within 30 days` — ending soon, not paid
+3. `paymentStatus = partial` AND outstanding balance > 0
+4. Remaining by balance descending
+
+**Columns:**
+| Column | Notes |
+|--------|-------|
+| Customer | Name, click → customer detail |
+| Cart | Label + type |
+| Start / End | Date range |
+| Total | Snapshot amount |
+| Paid | Sum of recorded payments |
+| Balance | Total − Paid, highlighted red if > 0 |
+| Status | `StatusBadge` payment variant |
+| Days Overdue | Only shown if `endDate < today`, red text |
+| Months Remaining | Leases tab only |
+| Actions | See below |
+
+**Inline actions (Actions column, revealed on row hover):**
+- `Record Payment` — ghost button, `sm` size → opens Record Payment dialog (reuse existing payment form pattern)
+- `View Rental` — ghost icon button → navigates to `/rentals/:id`
+- `Contact` — ghost icon button → expands row to show customer phone + email inline; no new page or modal
+
+**Empty state:** "No payments require attention" — standard `EmptyState` pattern, no CTA.
+
+### Action queue panels (Overview tab)
+Three panels side by side in a `grid grid-cols-3 gap-4`.
+
+Each panel:
+- Card with heading + count link ("N total — View all" → pre-filtered `/rentals?status=...`)
+- List of items: customer name, cart label, scheduled time
+- Each item links to `/rentals/:rentalId`
+- Empty state inline (dashed border circle icon + short message — no full `EmptyState` component)
+- Max 5 items shown; if more, show "and N more..." link
+
+### Capacity tables (Inventory tab)
+Standard shadcn `Table`. No actions column. Read-only. Rows are not clickable.
+
+Column headers: label scale (uppercase, xs, medium).
+Last column group (Daily / Lease rental counts) separated visually with a slightly stronger left border on the first column of the group.
+
+---
+
 *DESIGN.md v1.0 — Golf Cart Rental Management System*
 *Update this document when new patterns are introduced. Do not diverge from it silently.*
