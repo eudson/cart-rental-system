@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
@@ -12,11 +12,8 @@ import {
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  PaymentMethod,
-  PaymentStatus,
   RentalStatus,
   RentalType,
-  type CreateRentalPaymentRequestDto,
 } from 'shared';
 import {
   AlertDialog,
@@ -34,10 +31,10 @@ import { PageError } from '@/components/common/page-error';
 import { PaginationControls } from '@/components/common/pagination-controls';
 import { StatusBadge } from '@/components/common/status-badge';
 import { StaffPageLayout } from '@/components/layout/staff-page-layout';
+import { RecordPaymentDialog } from '@/components/rentals/record-payment-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -57,27 +54,10 @@ import { showErrorToast, showSuccessToast } from '@/lib/toast';
 import { ApiClientError } from '@/services/api-client';
 import {
   cancelRental,
-  createRentalPayment,
   getRentalById,
   getRentalContract,
   listRentalPayments,
 } from '@/services/rentals-service';
-
-interface PaymentFormState {
-  amount: string;
-  method: PaymentMethod;
-  status: PaymentStatus;
-  paidAt: string;
-  notes: string;
-}
-
-const INITIAL_PAYMENT_FORM: PaymentFormState = {
-  amount: '',
-  method: PaymentMethod.card,
-  status: PaymentStatus.paid,
-  paidAt: '',
-  notes: '',
-};
 
 export function RentalDetailPage() {
   const { id: rentalId } = useParams<{ id: string }>();
@@ -88,8 +68,7 @@ export function RentalDetailPage() {
   const [pageSize, setPageSize] = useState(20);
   const [searchInput, setSearchInput] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
-  const [paymentForm, setPaymentForm] = useState<PaymentFormState>(INITIAL_PAYMENT_FORM);
-  const [paymentFormError, setPaymentFormError] = useState<string | null>(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   const rentalQuery = useQuery({
     queryKey: ['rental', safeRentalId],
@@ -136,24 +115,6 @@ export function RentalDetailPage() {
     },
   });
 
-  const createPaymentMutation = useMutation({
-    mutationFn: (dto: CreateRentalPaymentRequestDto) => createRentalPayment(safeRentalId, dto),
-    onSuccess: async () => {
-      showSuccessToast('Payment recorded successfully.');
-      setPaymentForm(INITIAL_PAYMENT_FORM);
-      setPaymentFormError(null);
-      await queryClient.invalidateQueries({ queryKey: ['rental-payments', safeRentalId] });
-    },
-    onError: (error) => {
-      const message =
-        error instanceof ApiClientError
-          ? error.message
-          : 'Unable to record payment. Please try again.';
-      setPaymentFormError(message);
-      showErrorToast(message);
-    },
-  });
-
   function applyPaymentSearch() {
     setPage(1);
     setAppliedSearch(searchInput.trim());
@@ -163,41 +124,6 @@ export function RentalDetailPage() {
     setSearchInput('');
     setAppliedSearch('');
     setPage(1);
-  }
-
-  function updatePaymentForm<Key extends keyof PaymentFormState>(
-    field: Key,
-    value: PaymentFormState[Key],
-  ) {
-    setPaymentForm((currentForm) => ({
-      ...currentForm,
-      [field]: value,
-    }));
-  }
-
-  function handlePaymentSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const numericAmount = Number(paymentForm.amount.trim());
-    if (Number.isNaN(numericAmount) || numericAmount <= 0) {
-      setPaymentFormError('Amount must be a positive number.');
-      return;
-    }
-
-    const parsedPaidAt = paymentForm.paidAt ? new Date(paymentForm.paidAt) : null;
-    if (parsedPaidAt && Number.isNaN(parsedPaidAt.getTime())) {
-      setPaymentFormError('Paid date/time is invalid.');
-      return;
-    }
-
-    setPaymentFormError(null);
-    createPaymentMutation.mutate({
-      amount: numericAmount,
-      method: paymentForm.method,
-      status: paymentForm.status,
-      paidAt: parsedPaidAt ? parsedPaidAt.toISOString() : undefined,
-      notes: paymentForm.notes.trim() || undefined,
-    });
   }
 
   if (!safeRentalId) {
@@ -439,112 +365,16 @@ export function RentalDetailPage() {
 
           {/* Record Payment */}
           {rental.status !== RentalStatus.cancelled ? (
-            <Card className="border border-border bg-background shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-lg font-medium">Record Payment</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form className="space-y-4" onSubmit={handlePaymentSubmit}>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Amount *
-                      </label>
-                      <Input
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        value={paymentForm.amount}
-                        onChange={(event) => updatePaymentForm('amount', event.target.value)}
-                        disabled={createPaymentMutation.isPending}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Method *
-                      </label>
-                      <Select
-                        value={paymentForm.method}
-                        onValueChange={(value) =>
-                          updatePaymentForm('method', value as PaymentMethod)
-                        }
-                        disabled={createPaymentMutation.isPending}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={PaymentMethod.cash}>Cash</SelectItem>
-                          <SelectItem value={PaymentMethod.card}>Card</SelectItem>
-                          <SelectItem value={PaymentMethod.bank_transfer}>Bank Transfer</SelectItem>
-                          <SelectItem value={PaymentMethod.other}>Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Status
-                      </label>
-                      <Select
-                        value={paymentForm.status}
-                        onValueChange={(value) =>
-                          updatePaymentForm('status', value as PaymentStatus)
-                        }
-                        disabled={createPaymentMutation.isPending}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={PaymentStatus.unpaid}>Unpaid</SelectItem>
-                          <SelectItem value={PaymentStatus.partial}>Partial</SelectItem>
-                          <SelectItem value={PaymentStatus.paid}>Paid</SelectItem>
-                          <SelectItem value={PaymentStatus.refunded}>Refunded</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Paid At
-                      </label>
-                      <Input
-                        type="datetime-local"
-                        value={paymentForm.paidAt}
-                        onChange={(event) => updatePaymentForm('paidAt', event.target.value)}
-                        disabled={createPaymentMutation.isPending}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Notes
-                      </label>
-                      <Input
-                        value={paymentForm.notes}
-                        onChange={(event) => updatePaymentForm('notes', event.target.value)}
-                        disabled={createPaymentMutation.isPending}
-                      />
-                    </div>
-                  </div>
-
-                  {paymentFormError ? (
-                    <p className="text-xs text-destructive">{paymentFormError}</p>
-                  ) : null}
-
-                  <div className="flex justify-end">
-                    <Button type="submit" disabled={createPaymentMutation.isPending}>
-                      {createPaymentMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : null}
-                      Record Payment
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
+            <div className="flex justify-end">
+              <Button onClick={() => setPaymentDialogOpen(true)}>Record Payment</Button>
+            </div>
           ) : null}
+
+          <RecordPaymentDialog
+            rentalId={safeRentalId}
+            open={paymentDialogOpen}
+            onOpenChange={setPaymentDialogOpen}
+          />
 
           {/* Payment Records */}
           <Card className="border border-border bg-background shadow-sm">

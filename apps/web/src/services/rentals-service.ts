@@ -5,6 +5,7 @@ import type {
   Payment,
   PaginationMeta,
   Rental,
+  RentalListItem,
   ListRentalPaymentsQueryDto,
   ListRentalsQueryDto,
 } from 'shared';
@@ -12,7 +13,7 @@ import { apiRequest, apiRequestWithMeta, buildQueryString } from '@/services/api
 import { getPaginationMeta } from '@/services/pagination-service';
 
 interface ListRentalsResponse {
-  rentals: Rental[];
+  rentals: RentalListItem[];
   pagination: PaginationMeta;
 }
 
@@ -22,7 +23,7 @@ interface ListRentalPaymentsResponse {
 }
 
 export async function listRentals(query: ListRentalsQueryDto): Promise<ListRentalsResponse> {
-  const response = await apiRequestWithMeta<Rental[]>(`/rentals${buildQueryString(query)}`);
+  const response = await apiRequestWithMeta<RentalListItem[]>(`/rentals${buildQueryString(query)}`);
 
   return {
     rentals: response.data,

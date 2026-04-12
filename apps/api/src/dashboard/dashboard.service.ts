@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type {
   DashboardActionItem,
   DashboardCapacityItem,
+  DashboardFinancialSummary,
   DashboardOverview,
 } from 'shared';
 import { CartStatus, PaymentStatus, RentalStatus, RentalType } from 'shared';
@@ -35,6 +36,8 @@ type DashboardRentalRecord = {
   };
   payments: Array<{
     status: PaymentStatus;
+    amount: { toNumber(): number };
+    paidAt: Date | null;
   }>;
 };
 
@@ -52,7 +55,11 @@ export class DashboardService {
   async getOverview(organizationId: string): Promise<DashboardOverview> {
     this.logger.log(`Dashboard overview requested — org=${organizationId}`);
 
-    const [carts, rentals, locations, cartTypes] = await this.prisma.$transaction([
+    const now = new Date();
+    const startOfMonthUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const startOfNextMonthUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+
+    const [carts, rentals, locations, cartTypes, paidMtdAggregate] = await this.prisma.$transaction([
       this.prisma.cart.findMany({
         where: { organizationId },
         select: {
@@ -99,6 +106,8 @@ export class DashboardService {
           payments: {
             select: {
               status: true,
+              amount: true,
+              paidAt: true,
             },
           },
         },
@@ -117,12 +126,20 @@ export class DashboardService {
           name: true,
         },
       }),
+      this.prisma.payment.aggregate({
+        where: {
+          organizationId,
+          paidAt: { gte: startOfMonthUtc, lt: startOfNextMonthUtc },
+        },
+        _sum: { amount: true },
+      }),
     ]);
 
     const typedCarts = carts as DashboardCartRecord[];
     const typedRentals = rentals as DashboardRentalRecord[];
     const typedLocations = locations as DashboardReferenceRecord[];
     const typedCartTypes = cartTypes as DashboardReferenceRecord[];
+    const paidMtd = Number(paidMtdAggregate._sum.amount ?? 0);
 
     const fleetOverview = this.buildFleetOverview(typedCarts);
     const rentalMix = this.buildRentalMix(typedRentals);
@@ -131,13 +148,61 @@ export class DashboardService {
       byLocation: this.buildCapacityItems(typedLocations, typedCarts, typedRentals, 'location'),
       byCartType: this.buildCapacityItems(typedCartTypes, typedCarts, typedRentals, 'cartType'),
     };
+    const financialSummary = this.buildFinancialSummary(typedRentals, paidMtd);
 
     return {
       fleetOverview,
       rentalMix,
       actionQueue,
       capacitySignals,
+      financialSummary,
     };
+  }
+
+  private buildFinancialSummary(
+    rentals: DashboardRentalRecord[],
+    paidMtd: number,
+  ): DashboardFinancialSummary {
+    const { startOfTodayUtc } = this.getUtcDayBounds();
+    const in30Days = new Date(startOfTodayUtc);
+    in30Days.setUTCDate(in30Days.getUTCDate() + 30);
+
+    const activeRentals = rentals.filter((r) => r.status === RentalStatus.active);
+
+    let outstandingTotal = 0;
+    let overdueCount = 0;
+    let overdueAmount = 0;
+    let endingSoonUnpaidCount = 0;
+    let endingSoonUnpaidAmount = 0;
+
+    for (const rental of activeRentals) {
+      const totalAmount = rental.totalAmount ? Number(rental.totalAmount.toString()) : 0;
+      const paid = rental.payments.reduce((sum, p) => sum + p.amount.toNumber(), 0);
+      const outstanding = Math.max(0, totalAmount - paid);
+
+      outstandingTotal += outstanding;
+
+      if (rental.endDate < startOfTodayUtc && outstanding > 0) {
+        overdueCount += 1;
+        overdueAmount += outstanding;
+      } else if (rental.endDate >= startOfTodayUtc && rental.endDate < in30Days && outstanding > 0) {
+        endingSoonUnpaidCount += 1;
+        endingSoonUnpaidAmount += outstanding;
+      }
+    }
+
+    return {
+      outstandingTotal: this.roundCents(outstandingTotal),
+      overdueCount,
+      overdueAmount: this.roundCents(overdueAmount),
+      endingSoonUnpaidCount,
+      endingSoonUnpaidAmount: this.roundCents(endingSoonUnpaidAmount),
+      paidMtd: this.roundCents(paidMtd),
+    };
+  }
+
+  private roundCents(value: number): number {
+    return Math.round(value * 100) / 100;
   }
 
   private buildFleetOverview(carts: DashboardCartRecord[]) {

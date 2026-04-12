@@ -54,6 +54,7 @@ const RENTAL_PUBLIC_SELECT = {
       id: true,
       name: true,
       email: true,
+      phone: true,
     },
   },
   cart: {
@@ -72,9 +73,41 @@ const RENTAL_PUBLIC_SELECT = {
   },
 } satisfies Prisma.RentalSelect;
 
+const RENTAL_LIST_SELECT = {
+  ...RENTAL_PUBLIC_SELECT,
+  customer: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+    },
+  },
+  payments: {
+    select: {
+      amount: true,
+    },
+  },
+  leaseContract: {
+    select: {
+      contractMonths: true,
+    },
+  },
+} satisfies Prisma.RentalSelect;
+
 type RentalPublic = Prisma.RentalGetPayload<{
   select: typeof RENTAL_PUBLIC_SELECT;
 }>;
+
+type RentalListRaw = Prisma.RentalGetPayload<{
+  select: typeof RENTAL_LIST_SELECT;
+}>;
+
+type RentalListItem = Omit<RentalListRaw, 'payments' | 'leaseContract'> & {
+  paidTotal: number;
+  outstandingBalance: number;
+  monthsRemaining: number | null;
+};
 
 const LEASE_CONTRACT_PUBLIC_SELECT = {
   id: true,
@@ -141,7 +174,7 @@ export class RentalsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listRentals(organizationId: string, query: ListRentalsQueryDto): Promise<{
-    rentals: RentalPublic[];
+    rentals: RentalListItem[];
     pagination: ReturnType<typeof buildPaginationMeta>;
   }> {
     const normalizedSearch = query.search?.trim() || undefined;
@@ -157,16 +190,20 @@ export class RentalsService {
     );
     const offset = calculatePaginationOffset(query.page, query.pageSize);
 
-    const [totalItems, rentals] = await this.prisma.$transaction([
+    const [totalItems, rawRentals] = await this.prisma.$transaction([
       this.prisma.rental.count({ where }),
       this.prisma.rental.findMany({
         where,
         skip: offset,
         take: query.pageSize,
         orderBy: { createdAt: 'desc' },
-        select: RENTAL_PUBLIC_SELECT,
+        select: RENTAL_LIST_SELECT,
       }),
     ]);
+
+    const rentals = (rawRentals as RentalListRaw[]).map((raw) =>
+      this.toRentalListItem(raw),
+    );
 
     return {
       rentals,
@@ -836,6 +873,34 @@ export class RentalsService {
     }
 
     return rental.totalAmount;
+  }
+
+  private toRentalListItem(raw: RentalListRaw): RentalListItem {
+    const paidTotal = raw.payments.reduce(
+      (sum, p) => sum + Number(p.amount),
+      0,
+    );
+    const totalAmount = raw.totalAmount ? Number(raw.totalAmount) : 0;
+    const outstandingBalance = Math.max(0, totalAmount - paidTotal);
+
+    let monthsRemaining: number | null = null;
+    if (raw.type === RentalType.lease && raw.leaseContract) {
+      const contractMonths = raw.leaseContract.contractMonths;
+      const startDate = new Date(raw.startDate);
+      const now = new Date();
+      const monthsElapsed =
+        (now.getUTCFullYear() - startDate.getUTCFullYear()) * 12 +
+        (now.getUTCMonth() - startDate.getUTCMonth());
+      monthsRemaining = Math.max(0, contractMonths - monthsElapsed);
+    }
+
+    const { payments: _payments, leaseContract: _leaseContract, ...rest } = raw;
+    return {
+      ...rest,
+      paidTotal: Math.round(paidTotal * 100) / 100,
+      outstandingBalance: Math.round(outstandingBalance * 100) / 100,
+      monthsRemaining,
+    };
   }
 
   private buildListWhere(

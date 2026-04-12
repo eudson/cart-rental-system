@@ -330,6 +330,14 @@ test('GET /dashboard/overview returns owner-focused operational summary', async 
           utilizationRate: number;
         }>;
       };
+      financialSummary: {
+        outstandingTotal: number;
+        overdueCount: number;
+        overdueAmount: number;
+        endingSoonUnpaidCount: number;
+        endingSoonUnpaidAmount: number;
+        paidMtd: number;
+      };
     };
     error: null;
   };
@@ -434,6 +442,25 @@ test('GET /dashboard/overview returns owner-focused operational summary', async 
       },
     ],
   );
+
+  // financialSummary:
+  // - activeDailyRental: totalAmount=110, paid=0, outstanding=110, endDate=middayToday (not overdue, but ending soon)
+  // - activeLeaseRental: totalAmount=7200, paid=7200, outstanding=0 (fully paid, no risk)
+  // - paidMtd: the 7200 payment has paidAt=middayYesterday which is in the current month
+  const financialSummary = body.data.financialSummary as {
+    outstandingTotal: number;
+    overdueCount: number;
+    overdueAmount: number;
+    endingSoonUnpaidCount: number;
+    endingSoonUnpaidAmount: number;
+    paidMtd: number;
+  };
+  assert.equal(financialSummary.outstandingTotal, 110);
+  assert.equal(financialSummary.overdueCount, 0);
+  assert.equal(financialSummary.overdueAmount, 0);
+  assert.equal(financialSummary.endingSoonUnpaidCount, 1);
+  assert.equal(financialSummary.endingSoonUnpaidAmount, 110);
+  assert.equal(financialSummary.paidMtd, 7200);
 });
 
 async function loginAs(email: string): Promise<string> {

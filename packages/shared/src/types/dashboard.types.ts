@@ -1,6 +1,15 @@
 import { RentalStatus } from '../enums/rental-status.enum';
 import { RentalType } from '../enums/rental-type.enum';
 
+export interface DashboardFinancialSummary {
+  outstandingTotal: number;
+  overdueCount: number;
+  overdueAmount: number;
+  endingSoonUnpaidCount: number;
+  endingSoonUnpaidAmount: number;
+  paidMtd: number;
+}
+
 export interface DashboardFleetOverview {
   totalCarts: number;
   availableCarts: number;
@@ -62,4 +71,5 @@ export interface DashboardOverview {
   rentalMix: DashboardRentalMix;
   actionQueue: DashboardActionQueue;
   capacitySignals: DashboardCapacitySignals;
+  financialSummary: DashboardFinancialSummary;
 }

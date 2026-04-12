@@ -298,21 +298,21 @@
 - [x] Customer portal login page (`/portal/login`)
 
 #### Dashboard
-- [ ] Replace current single-view dashboard with tabbed layout (`Overview`, `Inventory`, `Daily Rentals`, `Leases`)
-- [ ] **Tab: Overview** — financial health cards row (Total Outstanding, Overdue 30+ days, Ending This Month Unpaid, Paid This Month)
-- [ ] **Tab: Overview** — fleet snapshot cards row (Fleet Utilization %, Available, Reserved, Rented, Retired)
-- [ ] **Tab: Overview** — action queue panels (Check-outs Today, Check-ins Today, Overdue Returns) with per-item links to rental detail and pre-filtered rental list
-- [ ] **Tab: Inventory** — summary cards (Available, Reserved, Rented, Retired counts)
-- [ ] **Tab: Inventory** — Capacity by Location table (Name, Total, Available, Reserved, Rented, Retired)
-- [ ] **Tab: Inventory** — Capacity by Cart Type table (same columns)
-- [ ] **Tab: Daily Rentals** — summary cards (Active, Unpaid amount+count, Partial amount+count, Overdue Returns count)
-- [ ] **Tab: Daily Rentals** — at-risk payments table sorted by risk (overdue+unpaid first, ending soon second, partial third, then balance desc) with inline Record Payment, View Rental, and Contact actions
-- [ ] **Tab: Daily Rentals** — all daily rentals table (paginated, filterable by status)
-- [ ] **Tab: Leases** — summary cards (Active Leases, Unpaid This Month amount+count, Ending This Month count, Outstanding Total amount)
-- [ ] **Tab: Leases** — at-risk payments table (same pattern as Daily Rentals, with additional Months Remaining column)
-- [ ] **Tab: Leases** — all leases table (paginated)
-- [ ] Update `GET /dashboard/overview` API endpoint to include payment risk data (outstanding total, overdue 30+ days, ending-soon unpaid, paid MTD)
-- [ ] Contact action: show customer phone + email inline (tooltip or expand row) — no new page required
+- [x] Replace current single-view dashboard with tabbed layout (`Overview`, `Inventory`, `Daily Rentals`, `Leases`)
+- [x] **Tab: Overview** — financial health cards row (Total Outstanding, Overdue 30+ days, Ending This Month Unpaid, Paid This Month)
+- [x] **Tab: Overview** — fleet snapshot cards row (Fleet Utilization %, Available, Reserved, Rented, Retired)
+- [x] **Tab: Overview** — action queue panels (Check-outs Today, Check-ins Today, Overdue Returns) with per-item links to rental detail and pre-filtered rental list
+- [x] **Tab: Inventory** — summary cards (Available, Reserved, Rented, Retired counts)
+- [x] **Tab: Inventory** — Capacity by Location table (Name, Total, Available, Reserved, Rented, Retired)
+- [x] **Tab: Inventory** — Capacity by Cart Type table (same columns)
+- [x] **Tab: Daily Rentals** — summary cards (Active, Unpaid amount+count, Partial amount+count, Overdue Returns count)
+- [x] **Tab: Daily Rentals** — at-risk payments table sorted by risk (overdue+unpaid first, ending soon second, partial third, then balance desc) with inline Record Payment, View Rental, and Contact actions
+- [x] **Tab: Daily Rentals** — all daily rentals table (paginated, filterable by status)
+- [x] **Tab: Leases** — summary cards (Active Leases, Unpaid This Month amount+count, Ending This Month count, Outstanding Total amount)
+- [x] **Tab: Leases** — at-risk payments table (same pattern as Daily Rentals, with additional Months Remaining column)
+- [x] **Tab: Leases** — all leases table (paginated)
+- [x] Update `GET /dashboard/overview` API endpoint to include payment risk data (outstanding total, overdue 30+ days, ending-soon unpaid, paid MTD)
+- [x] Contact action: show customer phone + email inline (tooltip or expand row) — no new page required
 
 #### Carts
 - [x] Carts list page (status badges, filters)
@@ -409,6 +409,7 @@
 - 2026-04-12: Implemented 4 Settings pages (org_admin only): Organization (read-only display from auth store — PRD permission matrix org_admin=Read own), Locations (full CRUD via GET/POST/PATCH /locations), Cart Types (full CRUD including DELETE via GET/POST/PATCH/DELETE /cart-types), Users (full CRUD + soft-delete via GET/POST/PATCH/DELETE /users). Extended `locations-service.ts` and `cart-types-service.ts` with mutation functions; created `users-service.ts`. All 4 settings router stubs replaced with real page components.
 - 2026-04-12: Validation: `pnpm --filter web build` passes (0 errors, 0 TS errors).
 - 2026-04-12: Dashboard redesigned from single-view to four-tab layout (Overview, Inventory, Daily Rentals, Leases). Payment risk is now the primary information hierarchy — outstanding totals, overdue 30+ days, at-risk tables with inline Record Payment / View Rental / Contact actions. Fleet and ops data moved to dedicated tabs. Old single-view dashboard tasks marked incomplete and replaced with new task set. See DESIGN.md section 10 for dashboard pattern conventions.
+- 2026-04-12: Completed dashboard rebuild — all 15 tasks now done. API extended with `financialSummary` block on `GET /dashboard/overview` (outstandingTotal, overdueCount, overdueAmount, endingSoonUnpaidCount, endingSoonUnpaidAmount, paidMtd). Rentals list API extended with per-rental `paidTotal`, `outstandingBalance`, `monthsRemaining` computed fields. `RecordPaymentDialog` extracted as reusable component; rental detail page refactored to use it. Dashboard page fully rebuilt with four tabs. `tabs.tsx` installed via shadcn. Validation: `pnpm --filter api build` ✓, `node --test apps/api/dist/test/dashboard.test.js` ✓ (1/1 pass), `pnpm --filter web build` ✓ (0 errors).
 
 ---
 
@@ -441,9 +442,9 @@
 | Phase 3 — Core Inventory | Complete | 24 / 24 |
 | Phase 4 — Rentals | Complete | 21 / 21 |
 | Phase 5 — Payments | Complete | 5 / 5 |
-| Phase 6 — Frontend | In progress | 38 / 65 |
+| Phase 6 — Frontend | In progress | 53 / 65 |
 | Phase 7 — Production Deployment | Not started | 0 / 7 |
-| **Total** | | **110 / 148** |
+| **Total** | | **125 / 148** |
 
 ---
 
