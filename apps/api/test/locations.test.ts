@@ -1,21 +1,13 @@
 import 'reflect-metadata';
 
 import assert from 'node:assert/strict';
-import type { AddressInfo } from 'node:net';
 import { after, before, test } from 'node:test';
 
 import * as bcrypt from 'bcrypt';
 import type { INestApplication } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
 
-import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/app.setup';
 import { PrismaService } from '../src/prisma/prisma.service';
-
-const DEFAULT_DATABASE_URL =
-  'postgresql://gcr:gcr_password@127.0.0.1:5440/gcr_dev?schema=public';
-
-const TEST_PASSWORD = 'Password123!';
+import { TEST_PASSWORD, loginAsStaff, setupTestApp } from './helpers';
 const PRIMARY_ORG_SLUG = 'test-locs-phase3-primary-org';
 const OTHER_ORG_SLUG = 'test-locs-phase3-other-org';
 const SUPER_ADMIN_EMAIL = 'super-admin@test-locs-phase3.com';
@@ -36,19 +28,7 @@ let primaryOrgId: string;
 let otherOrgLocationId: string;
 
 before(async () => {
-  process.env['DATABASE_URL'] = process.env['DATABASE_URL'] ?? DEFAULT_DATABASE_URL;
-  process.env['JWT_SECRET'] = 'test-jwt-secret';
-  process.env['JWT_REFRESH_SECRET'] = 'test-refresh-secret';
-  process.env['JWT_EXPIRES_IN'] = '15m';
-  process.env['JWT_REFRESH_EXPIRES_IN'] = '7d';
-
-  app = await NestFactory.create(AppModule, { logger: false });
-  configureApp(app);
-  await app.listen(0);
-
-  const { port } = app.getHttpServer().address() as AddressInfo;
-  baseUrl = `http://127.0.0.1:${port}/v1`;
-  prisma = app.get(PrismaService);
+  ({ app, baseUrl, prisma } = await setupTestApp());
 
   await cleanupTestData(prisma);
 
@@ -146,35 +126,13 @@ async function cleanupTestData(db: PrismaService): Promise<void> {
   await db.organization.deleteMany({ where: { id: { in: organizationIds } } });
 }
 
-interface LoginResponse {
-  data: {
-    accessToken: string;
-  };
-}
-
-async function loginAs(email: string): Promise<string> {
-  const res = await fetch(`${baseUrl}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email,
-      password: TEST_PASSWORD,
-      organizationSlug: PRIMARY_ORG_SLUG,
-    }),
-  });
-
-  assert.equal(res.status, 200);
-  const body = (await res.json()) as LoginResponse;
-  return body.data.accessToken;
-}
-
 test('GET /locations — missing JWT returns 401', async () => {
   const res = await fetch(`${baseUrl}/locations`);
   assert.equal(res.status, 401);
 });
 
 test('GET /locations — staff can list own org locations with pagination metadata', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/locations?page=1&pageSize=10&search=depot`, {
     headers: { Authorization: `Bearer ${staffToken}` },
@@ -193,7 +151,7 @@ test('GET /locations — staff can list own org locations with pagination metada
 });
 
 test('GET /locations — invalid page query value returns 400', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/locations?page=0&pageSize=10`, {
     headers: { Authorization: `Bearer ${staffToken}` },
@@ -205,7 +163,7 @@ test('GET /locations — invalid page query value returns 400', async () => {
 });
 
 test('POST /locations — staff role returns 403', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/locations`, {
     method: 'POST',
@@ -224,7 +182,7 @@ test('POST /locations — staff role returns 403', async () => {
 });
 
 test('POST /locations — org_admin can create location in own org', async () => {
-  const orgAdminToken = await loginAs(ORG_ADMIN_EMAIL);
+  const orgAdminToken = await loginAsStaff(baseUrl, ORG_ADMIN_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/locations`, {
     method: 'POST',
@@ -261,7 +219,7 @@ test('POST /locations — org_admin can create location in own org', async () =>
 });
 
 test('GET /locations/:id — staff can fetch own org location', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
   const location = await prisma.location.findFirst({
     where: { organizationId: primaryOrgId, name: 'Beta Yard' },
     select: { id: true },
@@ -279,7 +237,7 @@ test('GET /locations/:id — staff can fetch own org location', async () => {
 });
 
 test('GET /locations/:id — location in another org returns 404', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/locations/${otherOrgLocationId}`, {
     headers: { Authorization: `Bearer ${staffToken}` },
@@ -291,7 +249,7 @@ test('GET /locations/:id — location in another org returns 404', async () => {
 });
 
 test('PATCH /locations/:id — org_admin can update location', async () => {
-  const orgAdminToken = await loginAs(ORG_ADMIN_EMAIL);
+  const orgAdminToken = await loginAsStaff(baseUrl, ORG_ADMIN_EMAIL, PRIMARY_ORG_SLUG);
   const location = await prisma.location.findFirst({
     where: { organizationId: primaryOrgId, name: 'Gamma Storage' },
     select: { id: true },
@@ -331,7 +289,7 @@ test('PATCH /locations/:id — org_admin can update location', async () => {
 });
 
 test('PATCH /locations/:id — staff role returns 403', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
   const location = await prisma.location.findFirst({
     where: { organizationId: primaryOrgId },
     select: { id: true },

@@ -1,21 +1,13 @@
 import 'reflect-metadata';
 
 import assert from 'node:assert/strict';
-import type { AddressInfo } from 'node:net';
 import { after, before, test } from 'node:test';
 
 import * as bcrypt from 'bcrypt';
 import type { INestApplication } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
 
-import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/app.setup';
 import { PrismaService } from '../src/prisma/prisma.service';
-
-const DEFAULT_DATABASE_URL =
-  'postgresql://gcr:gcr_password@127.0.0.1:5440/gcr_dev?schema=public';
-
-const TEST_PASSWORD = 'Password123!';
+import { TEST_PASSWORD, loginAsStaff, setupTestApp } from './helpers';
 const PRIMARY_ORG_SLUG = 'test-customers-phase3-primary-org';
 const OTHER_ORG_SLUG = 'test-customers-phase3-other-org';
 const ORG_SLUG_PREFIX = 'test-customers-phase3-';
@@ -32,19 +24,7 @@ let primaryOrgId: string;
 let otherOrgCustomerId: string;
 
 before(async () => {
-  process.env['DATABASE_URL'] = process.env['DATABASE_URL'] ?? DEFAULT_DATABASE_URL;
-  process.env['JWT_SECRET'] = 'test-jwt-secret';
-  process.env['JWT_REFRESH_SECRET'] = 'test-refresh-secret';
-  process.env['JWT_EXPIRES_IN'] = '15m';
-  process.env['JWT_REFRESH_EXPIRES_IN'] = '7d';
-
-  app = await NestFactory.create(AppModule, { logger: false });
-  configureApp(app);
-  await app.listen(0);
-
-  const { port } = app.getHttpServer().address() as AddressInfo;
-  baseUrl = `http://127.0.0.1:${port}/v1`;
-  prisma = app.get(PrismaService);
+  ({ app, baseUrl, prisma } = await setupTestApp());
 
   await cleanupTestData(prisma);
 
@@ -147,35 +127,13 @@ async function cleanupTestData(db: PrismaService): Promise<void> {
   await db.organization.deleteMany({ where: { id: { in: organizationIds } } });
 }
 
-interface LoginResponse {
-  data: {
-    accessToken: string;
-  };
-}
-
-async function loginAs(email: string): Promise<string> {
-  const res = await fetch(`${baseUrl}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email,
-      password: TEST_PASSWORD,
-      organizationSlug: PRIMARY_ORG_SLUG,
-    }),
-  });
-
-  assert.equal(res.status, 200);
-  const body = (await res.json()) as LoginResponse;
-  return body.data.accessToken;
-}
-
 test('GET /customers — missing JWT returns 401', async () => {
   const res = await fetch(`${baseUrl}/customers`);
   assert.equal(res.status, 401);
 });
 
 test('GET /customers — staff can list customers in own org with pagination metadata', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/customers?page=1&pageSize=10&search=List Target`, {
     headers: { Authorization: `Bearer ${staffToken}` },
@@ -195,7 +153,7 @@ test('GET /customers — staff can list customers in own org with pagination met
 });
 
 test('POST /customers — staff can create customer and password is hashed', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
   const newEmail = `created-${Date.now()}@test-customers-phase3.com`;
   const plaintextPassword = 'CustomerPassword1!';
 
@@ -241,7 +199,7 @@ test('POST /customers — staff can create customer and password is hashed', asy
 });
 
 test('POST /customers — duplicate email in org returns CUSTOMER_EMAIL_EXISTS', async () => {
-  const orgAdminToken = await loginAs(ORG_ADMIN_EMAIL);
+  const orgAdminToken = await loginAsStaff(baseUrl, ORG_ADMIN_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/customers`, {
     method: 'POST',
@@ -262,7 +220,7 @@ test('POST /customers — duplicate email in org returns CUSTOMER_EMAIL_EXISTS',
 });
 
 test('GET /customers/:id — staff can fetch customer in own org', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
   const customer = await prisma.customer.findUnique({
     where: { organizationId_email: { organizationId: primaryOrgId, email: LIST_TARGET_EMAIL } },
     select: { id: true },
@@ -280,7 +238,7 @@ test('GET /customers/:id — staff can fetch customer in own org', async () => {
 });
 
 test('GET /customers/:id — customer from another org returns 404', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/customers/${otherOrgCustomerId}`, {
     headers: { Authorization: `Bearer ${staffToken}` },
@@ -292,7 +250,7 @@ test('GET /customers/:id — customer from another org returns 404', async () =>
 });
 
 test('PATCH /customers/:id — org_admin can update customer and password hash', async () => {
-  const orgAdminToken = await loginAs(ORG_ADMIN_EMAIL);
+  const orgAdminToken = await loginAsStaff(baseUrl, ORG_ADMIN_EMAIL, PRIMARY_ORG_SLUG);
   const customer = await prisma.customer.findUnique({
     where: { organizationId_email: { organizationId: primaryOrgId, email: LIST_TARGET_EMAIL } },
     select: { id: true },
@@ -328,4 +286,42 @@ test('PATCH /customers/:id — org_admin can update customer and password hash',
   assert.ok(updatedCustomer?.passwordHash);
   const passwordMatches = await bcrypt.compare(newPassword, updatedCustomer!.passwordHash);
   assert.equal(passwordMatches, true);
+});
+
+test('POST /customers — invalid email format returns 400', async () => {
+  const orgAdminToken = await loginAsStaff(baseUrl, ORG_ADMIN_EMAIL, PRIMARY_ORG_SLUG);
+
+  const res = await fetch(`${baseUrl}/customers`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${orgAdminToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: 'Bad Email Customer',
+      email: 'not-an-email',
+      password: TEST_PASSWORD,
+    }),
+  });
+
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'BAD_REQUEST');
+});
+
+test('PATCH /customers/:id — updating customer from another org returns 404', async () => {
+  const orgAdminToken = await loginAsStaff(baseUrl, ORG_ADMIN_EMAIL, PRIMARY_ORG_SLUG);
+
+  const res = await fetch(`${baseUrl}/customers/${otherOrgCustomerId}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${orgAdminToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name: 'Should Not Update' }),
+  });
+
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'NOT_FOUND');
 });

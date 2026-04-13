@@ -1,21 +1,13 @@
 import 'reflect-metadata';
 
 import assert from 'node:assert/strict';
-import type { AddressInfo } from 'node:net';
 import { after, before, test } from 'node:test';
 
 import * as bcrypt from 'bcrypt';
 import type { INestApplication } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
 
-import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/app.setup';
 import { PrismaService } from '../src/prisma/prisma.service';
-
-const DEFAULT_DATABASE_URL =
-  'postgresql://gcr:gcr_password@127.0.0.1:5440/gcr_dev?schema=public';
-
-const TEST_PASSWORD = 'Password123!';
+import { TEST_PASSWORD, loginAsStaff, setupTestApp } from './helpers';
 const PRIMARY_ORG_SLUG = 'test-carts-phase3-primary-org';
 const OTHER_ORG_SLUG = 'test-carts-phase3-other-org';
 const ORG_SLUG_PREFIX = 'test-carts-phase3-';
@@ -40,19 +32,7 @@ const AVAILABILITY_WINDOW_START = '2026-05-10T00:00:00.000Z';
 const AVAILABILITY_WINDOW_END = '2026-05-12T00:00:00.000Z';
 
 before(async () => {
-  process.env['DATABASE_URL'] = process.env['DATABASE_URL'] ?? DEFAULT_DATABASE_URL;
-  process.env['JWT_SECRET'] = 'test-jwt-secret';
-  process.env['JWT_REFRESH_SECRET'] = 'test-refresh-secret';
-  process.env['JWT_EXPIRES_IN'] = '15m';
-  process.env['JWT_REFRESH_EXPIRES_IN'] = '7d';
-
-  app = await NestFactory.create(AppModule, { logger: false });
-  configureApp(app);
-  await app.listen(0);
-
-  const { port } = app.getHttpServer().address() as AddressInfo;
-  baseUrl = `http://127.0.0.1:${port}/v1`;
-  prisma = app.get(PrismaService);
+  ({ app, baseUrl, prisma } = await setupTestApp());
 
   await cleanupTestData(prisma);
 
@@ -288,35 +268,13 @@ async function cleanupTestData(db: PrismaService): Promise<void> {
   await db.organization.deleteMany({ where: { id: { in: organizationIds } } });
 }
 
-interface LoginResponse {
-  data: {
-    accessToken: string;
-  };
-}
-
-async function loginAs(email: string): Promise<string> {
-  const res = await fetch(`${baseUrl}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email,
-      password: TEST_PASSWORD,
-      organizationSlug: PRIMARY_ORG_SLUG,
-    }),
-  });
-
-  assert.equal(res.status, 200);
-  const body = (await res.json()) as LoginResponse;
-  return body.data.accessToken;
-}
-
 test('GET /carts — missing JWT returns 401', async () => {
   const res = await fetch(`${baseUrl}/carts`);
   assert.equal(res.status, 401);
 });
 
 test('GET /carts — staff can list carts with filters and pagination metadata', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(
     `${baseUrl}/carts?page=1&pageSize=10&search=Cart-100&locationId=${primaryLocationAId}&status=available`,
@@ -338,7 +296,7 @@ test('GET /carts — staff can list carts with filters and pagination metadata',
 });
 
 test('GET /carts/availability — returns only carts that are available with no overlap', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(
     `${baseUrl}/carts/availability?startDate=${encodeURIComponent(AVAILABILITY_WINDOW_START)}&endDate=${encodeURIComponent(AVAILABILITY_WINDOW_END)}&type=daily`,
@@ -364,7 +322,7 @@ test('GET /carts/availability — returns only carts that are available with no 
 });
 
 test('GET /carts/availability — locationId filter scopes result set', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(
     `${baseUrl}/carts/availability?startDate=${encodeURIComponent(AVAILABILITY_WINDOW_START)}&endDate=${encodeURIComponent(AVAILABILITY_WINDOW_END)}&locationId=${primaryLocationAId}&type=daily`,
@@ -388,7 +346,7 @@ test('GET /carts/availability — locationId filter scopes result set', async ()
 });
 
 test('GET /carts/availability — startDate must be before endDate', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(
     `${baseUrl}/carts/availability?startDate=${encodeURIComponent(AVAILABILITY_WINDOW_END)}&endDate=${encodeURIComponent(AVAILABILITY_WINDOW_START)}&type=daily`,
@@ -403,7 +361,7 @@ test('GET /carts/availability — startDate must be before endDate', async () =>
 });
 
 test('POST /carts — staff role returns 403', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/carts`, {
     method: 'POST',
@@ -424,7 +382,7 @@ test('POST /carts — staff role returns 403', async () => {
 });
 
 test('POST /carts — org_admin can create cart', async () => {
-  const orgAdminToken = await loginAs(ORG_ADMIN_EMAIL);
+  const orgAdminToken = await loginAsStaff(baseUrl, ORG_ADMIN_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/carts`, {
     method: 'POST',
@@ -463,7 +421,7 @@ test('POST /carts — org_admin can create cart', async () => {
 });
 
 test('GET /carts/:id — staff can fetch own org cart', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
   const cart = await prisma.cart.findFirst({
     where: { organizationId: primaryOrgId, label: 'Cart-100' },
     select: { id: true },
@@ -481,7 +439,7 @@ test('GET /carts/:id — staff can fetch own org cart', async () => {
 });
 
 test('GET /carts/:id — cart from another org returns 404', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/carts/${otherOrgCartId}`, {
     headers: { Authorization: `Bearer ${staffToken}` },
@@ -493,7 +451,7 @@ test('GET /carts/:id — cart from another org returns 404', async () => {
 });
 
 test('PATCH /carts/:id — org_admin can update cart details', async () => {
-  const orgAdminToken = await loginAs(ORG_ADMIN_EMAIL);
+  const orgAdminToken = await loginAsStaff(baseUrl, ORG_ADMIN_EMAIL, PRIMARY_ORG_SLUG);
   const cart = await prisma.cart.findFirst({
     where: { organizationId: primaryOrgId, label: 'Cart-100' },
     select: { id: true },
@@ -536,7 +494,7 @@ test('PATCH /carts/:id — org_admin can update cart details', async () => {
 });
 
 test('PATCH /carts/:id — staff can update status with valid transition', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
   const cart = await prisma.cart.findFirst({
     where: { organizationId: primaryOrgId, label: 'Cart-100-Updated' },
     select: { id: true },
@@ -559,7 +517,7 @@ test('PATCH /carts/:id — staff can update status with valid transition', async
 });
 
 test('PATCH /carts/:id — staff cannot update non-status fields', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
   const cart = await prisma.cart.findFirst({
     where: { organizationId: primaryOrgId, label: 'Cart-100-Updated' },
     select: { id: true },
@@ -581,7 +539,7 @@ test('PATCH /carts/:id — staff cannot update non-status fields', async () => {
 });
 
 test('PATCH /carts/:id — invalid status transition returns INVALID_STATUS_TRANSITION', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
   const cart = await prisma.cart.findFirst({
     where: { organizationId: primaryOrgId, label: 'Cart-100-Updated' },
     select: { id: true },
@@ -600,4 +558,48 @@ test('PATCH /carts/:id — invalid status transition returns INVALID_STATUS_TRAN
   assert.equal(res.status, 422);
   const body = (await res.json()) as { error: { code: string } };
   assert.equal(body.error.code, 'INVALID_STATUS_TRANSITION');
+});
+
+test('POST /carts — missing required label returns 400', async () => {
+  const orgAdminToken = await loginAsStaff(baseUrl, ORG_ADMIN_EMAIL, PRIMARY_ORG_SLUG);
+
+  const res = await fetch(`${baseUrl}/carts`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${orgAdminToken}`,
+      'Content-Type': 'application/json',
+    },
+    // label is required but omitted
+    body: JSON.stringify({
+      locationId: primaryLocationAId,
+      cartTypeId: primaryCartTypeAId,
+      status: 'available',
+    }),
+  });
+
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'BAD_REQUEST');
+});
+
+test('PATCH /carts/:id — invalid status value returns 400', async () => {
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
+
+  const cart = await prisma.cart.findFirstOrThrow({
+    where: { organizationId: primaryOrgId, status: 'available' },
+    select: { id: true },
+  });
+
+  const res = await fetch(`${baseUrl}/carts/${cart.id}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${staffToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ status: 'broken_and_on_fire' }),
+  });
+
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'BAD_REQUEST');
 });

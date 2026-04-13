@@ -1,21 +1,13 @@
 import 'reflect-metadata';
 
 import assert from 'node:assert/strict';
-import type { AddressInfo } from 'node:net';
 import { after, before, test } from 'node:test';
 
 import * as bcrypt from 'bcrypt';
 import type { INestApplication } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
 
-import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/app.setup';
 import { PrismaService } from '../src/prisma/prisma.service';
-
-const DEFAULT_DATABASE_URL =
-  'postgresql://gcr:gcr_password@127.0.0.1:5440/gcr_dev?schema=public';
-
-const TEST_PASSWORD = 'Password123!';
+import { TEST_PASSWORD, loginAsStaff, setupTestApp } from './helpers';
 const PRIMARY_ORG_SLUG = 'test-users-phase3-primary-org';
 const OTHER_ORG_SLUG = 'test-users-phase3-other-org';
 const ORG_SLUG_PREFIX = 'test-users-phase3-';
@@ -33,19 +25,7 @@ let primaryLocationId: string;
 let otherOrgUserId: string;
 
 before(async () => {
-  process.env['DATABASE_URL'] = process.env['DATABASE_URL'] ?? DEFAULT_DATABASE_URL;
-  process.env['JWT_SECRET'] = 'test-jwt-secret';
-  process.env['JWT_REFRESH_SECRET'] = 'test-refresh-secret';
-  process.env['JWT_EXPIRES_IN'] = '15m';
-  process.env['JWT_REFRESH_EXPIRES_IN'] = '7d';
-
-  app = await NestFactory.create(AppModule, { logger: false });
-  configureApp(app);
-  await app.listen(0);
-
-  const { port } = app.getHttpServer().address() as AddressInfo;
-  baseUrl = `http://127.0.0.1:${port}/v1`;
-  prisma = app.get(PrismaService);
+  ({ app, baseUrl, prisma } = await setupTestApp());
 
   await cleanupTestData(prisma);
 
@@ -158,35 +138,13 @@ async function cleanupTestData(db: PrismaService): Promise<void> {
   await db.organization.deleteMany({ where: { id: { in: organizationIds } } });
 }
 
-interface LoginResponse {
-  data: {
-    accessToken: string;
-  };
-}
-
-async function loginAs(email: string): Promise<string> {
-  const res = await fetch(`${baseUrl}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email,
-      password: TEST_PASSWORD,
-      organizationSlug: PRIMARY_ORG_SLUG,
-    }),
-  });
-
-  assert.equal(res.status, 200);
-  const body = (await res.json()) as LoginResponse;
-  return body.data.accessToken;
-}
-
 test('GET /users — missing JWT returns 401', async () => {
   const res = await fetch(`${baseUrl}/users`);
   assert.equal(res.status, 401);
 });
 
 test('GET /users — staff can list users in own org with pagination metadata', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/users?page=1&pageSize=10&search=List Target`, {
     headers: { Authorization: `Bearer ${staffToken}` },
@@ -206,7 +164,7 @@ test('GET /users — staff can list users in own org with pagination metadata', 
 });
 
 test('POST /users — staff role returns 403', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/users`, {
     method: 'POST',
@@ -228,7 +186,7 @@ test('POST /users — staff role returns 403', async () => {
 });
 
 test('POST /users — org_admin can create user and password is hashed', async () => {
-  const orgAdminToken = await loginAs(ORG_ADMIN_EMAIL);
+  const orgAdminToken = await loginAsStaff(baseUrl, ORG_ADMIN_EMAIL, PRIMARY_ORG_SLUG);
   const newEmail = `created-${Date.now()}@test-users-phase3.com`;
   const plaintextPassword = 'MyStrongPassword1!';
 
@@ -276,7 +234,7 @@ test('POST /users — org_admin can create user and password is hashed', async (
 });
 
 test('POST /users — duplicate email in org returns 409', async () => {
-  const orgAdminToken = await loginAs(ORG_ADMIN_EMAIL);
+  const orgAdminToken = await loginAsStaff(baseUrl, ORG_ADMIN_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/users`, {
     method: 'POST',
@@ -298,7 +256,7 @@ test('POST /users — duplicate email in org returns 409', async () => {
 });
 
 test('GET /users/:id — staff can fetch user in own org', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
   const user = await prisma.user.findUnique({
     where: { organizationId_email: { organizationId: primaryOrgId, email: LIST_TARGET_EMAIL } },
     select: { id: true },
@@ -316,7 +274,7 @@ test('GET /users/:id — staff can fetch user in own org', async () => {
 });
 
 test('GET /users/:id — user from another org returns 404', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const res = await fetch(`${baseUrl}/users/${otherOrgUserId}`, {
     headers: { Authorization: `Bearer ${staffToken}` },
@@ -328,7 +286,7 @@ test('GET /users/:id — user from another org returns 404', async () => {
 });
 
 test('PATCH /users/:id — org_admin can update user details and password hash', async () => {
-  const orgAdminToken = await loginAs(ORG_ADMIN_EMAIL);
+  const orgAdminToken = await loginAsStaff(baseUrl, ORG_ADMIN_EMAIL, PRIMARY_ORG_SLUG);
   const user = await prisma.user.findUnique({
     where: { organizationId_email: { organizationId: primaryOrgId, email: LIST_TARGET_EMAIL } },
     select: { id: true },
@@ -367,7 +325,7 @@ test('PATCH /users/:id — org_admin can update user details and password hash',
 });
 
 test('PATCH /users/:id — staff role returns 403', async () => {
-  const staffToken = await loginAs(STAFF_EMAIL);
+  const staffToken = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
   const user = await prisma.user.findUnique({
     where: { organizationId_email: { organizationId: primaryOrgId, email: ORG_ADMIN_EMAIL } },
     select: { id: true },
@@ -389,7 +347,7 @@ test('PATCH /users/:id — staff role returns 403', async () => {
 });
 
 test('DELETE /users/:id — org_admin performs soft delete (isActive=false)', async () => {
-  const orgAdminToken = await loginAs(ORG_ADMIN_EMAIL);
+  const orgAdminToken = await loginAsStaff(baseUrl, ORG_ADMIN_EMAIL, PRIMARY_ORG_SLUG);
 
   const createdUser = await prisma.user.create({
     data: {

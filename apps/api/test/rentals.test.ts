@@ -1,21 +1,13 @@
 import 'reflect-metadata';
 
 import assert from 'node:assert/strict';
-import type { AddressInfo } from 'node:net';
 import { after, before, test } from 'node:test';
 
 import * as bcrypt from 'bcrypt';
 import type { INestApplication } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
 
-import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/app.setup';
 import { PrismaService } from '../src/prisma/prisma.service';
-
-const DEFAULT_DATABASE_URL =
-  'postgresql://gcr:gcr_password@127.0.0.1:5440/gcr_dev?schema=public';
-
-const TEST_PASSWORD = 'Password123!';
+import { TEST_PASSWORD, loginAsStaff, setupTestApp } from './helpers';
 const PRIMARY_ORG_SLUG = 'test-rentals-phase4-primary-org';
 const OTHER_ORG_SLUG = 'test-rentals-phase4-other-org';
 const ORG_SLUG_PREFIX = 'test-rentals-phase4-';
@@ -42,19 +34,7 @@ let otherOrgStaffUserId: string;
 let otherOrgCustomerId: string;
 
 before(async () => {
-  process.env['DATABASE_URL'] = process.env['DATABASE_URL'] ?? DEFAULT_DATABASE_URL;
-  process.env['JWT_SECRET'] = 'test-jwt-secret';
-  process.env['JWT_REFRESH_SECRET'] = 'test-refresh-secret';
-  process.env['JWT_EXPIRES_IN'] = '15m';
-  process.env['JWT_REFRESH_EXPIRES_IN'] = '7d';
-
-  app = await NestFactory.create(AppModule, { logger: false });
-  configureApp(app);
-  await app.listen(0);
-
-  const { port } = app.getHttpServer().address() as AddressInfo;
-  baseUrl = `http://127.0.0.1:${port}/v1`;
-  prisma = app.get(PrismaService);
+  ({ app, baseUrl, prisma } = await setupTestApp());
 
   await cleanupTestData(prisma);
 
@@ -317,33 +297,11 @@ async function cleanupTestData(db: PrismaService): Promise<void> {
   await db.organization.deleteMany({ where: { id: { in: organizationIds } } });
 }
 
-interface LoginResponse {
-  data: {
-    accessToken: string;
-  };
-}
-
 let actionSequence = 0;
 
 function nextActionLabel(prefix: string): string {
   actionSequence += 1;
   return `${prefix}-${actionSequence}`;
-}
-
-async function loginAs(email: string): Promise<string> {
-  const response = await fetch(`${baseUrl}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email,
-      password: TEST_PASSWORD,
-      organizationSlug: PRIMARY_ORG_SLUG,
-    }),
-  });
-
-  assert.equal(response.status, 200);
-  const body = (await response.json()) as LoginResponse;
-  return body.data.accessToken;
 }
 
 test('POST /rentals — missing JWT returns 401', async () => {
@@ -363,7 +321,7 @@ test('POST /rentals — missing JWT returns 401', async () => {
 });
 
 test('POST /rentals — staff can create a daily rental with rate snapshot and reserved cart', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const response = await fetch(`${baseUrl}/rentals`, {
     method: 'POST',
@@ -417,7 +375,7 @@ test('POST /rentals — staff can create a daily rental with rate snapshot and r
 });
 
 test('POST /rentals — cart not in available status returns CART_NOT_AVAILABLE', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const response = await fetch(`${baseUrl}/rentals`, {
     method: 'POST',
@@ -440,7 +398,7 @@ test('POST /rentals — cart not in available status returns CART_NOT_AVAILABLE'
 });
 
 test('POST /rentals — overlapping rental returns RENTAL_OVERLAP', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const response = await fetch(`${baseUrl}/rentals`, {
     method: 'POST',
@@ -463,7 +421,7 @@ test('POST /rentals — overlapping rental returns RENTAL_OVERLAP', async () => 
 });
 
 test('POST /rentals — customer from another org returns 404', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const response = await fetch(`${baseUrl}/rentals`, {
     method: 'POST',
@@ -486,7 +444,7 @@ test('POST /rentals — customer from another org returns 404', async () => {
 });
 
 test('POST /rentals — startDate must be before endDate', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const response = await fetch(`${baseUrl}/rentals`, {
     method: 'POST',
@@ -509,7 +467,7 @@ test('POST /rentals — startDate must be before endDate', async () => {
 });
 
 test('POST /rentals — lease rental enforces min contract months', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const response = await fetch(`${baseUrl}/rentals`, {
     method: 'POST',
@@ -533,7 +491,7 @@ test('POST /rentals — lease rental enforces min contract months', async () => 
 });
 
 test('POST /rentals — staff can create lease rental with monthly snapshot and total amount', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const response = await fetch(`${baseUrl}/rentals`, {
     method: 'POST',
@@ -582,7 +540,7 @@ test('POST /rentals — staff can create lease rental with monthly snapshot and 
 });
 
 test('POST /rentals/:id/contract — creates lease contract record', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
   const leaseRental = await prisma.rental.findFirst({
     where: {
       organizationId: primaryOrgId,
@@ -619,7 +577,7 @@ test('POST /rentals/:id/contract — creates lease contract record', async () =>
 });
 
 test('PATCH /rentals/:id/contract — updates lease contract fields', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
   const leaseRental = await prisma.rental.findFirst({
     where: {
       organizationId: primaryOrgId,
@@ -659,7 +617,7 @@ test('PATCH /rentals/:id/contract — updates lease contract fields', async () =
 });
 
 test('GET /rentals/:id/contract — returns lease contract details', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
   const leaseRental = await prisma.rental.findFirst({
     where: {
       organizationId: primaryOrgId,
@@ -696,7 +654,7 @@ test('GET /rentals/:id/contract — returns lease contract details', async () =>
 });
 
 test('POST /rentals/:id/checkout — pending rental becomes active and cart becomes rented', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const actionCart = await prisma.cart.create({
     data: {
@@ -744,7 +702,7 @@ test('POST /rentals/:id/checkout — pending rental becomes active and cart beco
 });
 
 test('POST /rentals/:id/checkout — invalid status transition returns INVALID_STATUS_TRANSITION', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const actionCart = await prisma.cart.create({
     data: {
@@ -785,7 +743,7 @@ test('POST /rentals/:id/checkout — invalid status transition returns INVALID_S
 });
 
 test('POST /rentals/:id/checkin — active rental becomes completed and cart becomes available', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const actionCart = await prisma.cart.create({
     data: {
@@ -837,7 +795,7 @@ test('POST /rentals/:id/checkin — active rental becomes completed and cart bec
 });
 
 test('POST /rentals/:id/cancel — pending rental becomes cancelled and cart becomes available', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const actionCart = await prisma.cart.create({
     data: {
@@ -885,7 +843,7 @@ test('POST /rentals/:id/cancel — pending rental becomes cancelled and cart bec
 });
 
 test('GET /rentals — supports filters and pagination metadata', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const actionCart = await prisma.cart.create({
     data: {
@@ -949,7 +907,7 @@ test('GET /rentals — supports filters and pagination metadata', async () => {
 });
 
 test('GET /rentals/:id — returns rental details for same org', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const actionCart = await prisma.cart.create({
     data: {
@@ -991,7 +949,7 @@ test('GET /rentals/:id — returns rental details for same org', async () => {
 });
 
 test('PATCH /rentals/:id — updates pending rental dates, notes, and total amount', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const actionCart = await prisma.cart.create({
     data: {
@@ -1043,7 +1001,7 @@ test('PATCH /rentals/:id — updates pending rental dates, notes, and total amou
 });
 
 test('PATCH /rentals/:id — active rental date update returns INVALID_STATUS_TRANSITION', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const actionCart = await prisma.cart.create({
     data: {
@@ -1088,7 +1046,7 @@ test('PATCH /rentals/:id — active rental date update returns INVALID_STATUS_TR
 });
 
 test('POST /rentals/:id/payments — records payment with recordedById from JWT', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const actionCart = await prisma.cart.create({
     data: {
@@ -1168,7 +1126,7 @@ test('POST /rentals/:id/payments — records payment with recordedById from JWT'
 });
 
 test('GET /rentals/:id/payments — lists rental payments with pagination metadata', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const actionCart = await prisma.cart.create({
     data: {
@@ -1253,7 +1211,7 @@ test('GET /rentals/:id/payments — lists rental payments with pagination metada
 });
 
 test('PATCH /rentals/:id/payments/:pid — updates payment record fields and status', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const actionCart = await prisma.cart.create({
     data: {
@@ -1329,7 +1287,7 @@ test('PATCH /rentals/:id/payments/:pid — updates payment record fields and sta
 });
 
 test('POST /rentals/:id/payments — rental from another organization returns 404', async () => {
-  const token = await loginAs(STAFF_EMAIL);
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
 
   const otherOrgLocation = await prisma.location.findFirstOrThrow({
     where: { organizationId: { not: primaryOrgId } },
@@ -1384,4 +1342,209 @@ test('POST /rentals/:id/payments — rental from another organization returns 40
   assert.equal(response.status, 404);
   const body = (await response.json()) as { error: { code: string } };
   assert.equal(body.error.code, 'NOT_FOUND');
+});
+
+test('POST /rentals — concurrent requests for the same cart and date window allow only one to succeed', async () => {
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
+
+  // Dedicated cart so this test does not interfere with any other fixture
+  const concurrencyCart = await prisma.cart.create({
+    data: {
+      organizationId: primaryOrgId,
+      locationId: primaryLocationId,
+      cartTypeId: primaryCartTypeId,
+      label: nextActionLabel('CONCURRENCY-CART'),
+      status: 'available',
+    },
+    select: { id: true },
+  });
+
+  const createRental = () =>
+    fetch(`${baseUrl}/rentals`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        type: 'daily',
+        customerId: primaryCustomerId,
+        cartId: concurrencyCart.id,
+        startDate: '2027-01-10T00:00:00.000Z',
+        endDate: '2027-01-15T00:00:00.000Z',
+      }),
+    });
+
+  const [res1, res2] = await Promise.all([createRental(), createRental()]);
+
+  const statuses = [res1.status, res2.status];
+  const successes = statuses.filter((s) => s === 201);
+  const failures = statuses.filter((s) => s >= 400);
+
+  assert.equal(
+    successes.length,
+    1,
+    `Expected exactly one 201, got statuses: ${statuses.join(', ')}`,
+  );
+  assert.equal(
+    failures.length,
+    1,
+    `Expected exactly one 4xx, got statuses: ${statuses.join(', ')}`,
+  );
+
+  // Exactly one rental must exist in the DB — no double-booking
+  const rentalCount = await prisma.rental.count({
+    where: { cartId: concurrencyCart.id },
+  });
+  assert.equal(rentalCount, 1, 'Exactly one rental must exist after concurrent creation attempts');
+});
+
+test('POST /rentals — missing required field returns 400', async () => {
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
+
+  const response = await fetch(`${baseUrl}/rentals`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    // startDate and endDate are required for daily rentals but omitted here
+    body: JSON.stringify({
+      type: 'daily',
+      customerId: primaryCustomerId,
+      cartId: primaryAvailableCartId,
+    }),
+  });
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'BAD_REQUEST');
+});
+
+test('POST /rentals — invalid type enum returns 400', async () => {
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
+
+  const response = await fetch(`${baseUrl}/rentals`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      type: 'not_a_real_type',
+      customerId: primaryCustomerId,
+      cartId: primaryAvailableCartId,
+      startDate: '2027-02-01T00:00:00.000Z',
+      endDate: '2027-02-03T00:00:00.000Z',
+    }),
+  });
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'BAD_REQUEST');
+});
+
+test('GET /rentals/:id — rental from another org returns 404', async () => {
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
+
+  const otherOrgLocation = await prisma.location.findFirstOrThrow({
+    where: { organization: { slug: OTHER_ORG_SLUG } },
+    select: { id: true, organizationId: true },
+  });
+
+  const otherOrgCart = await prisma.cart.findFirstOrThrow({
+    where: { organizationId: otherOrgLocation.organizationId },
+    select: { id: true },
+  });
+
+  const otherOrgRental = await prisma.rental.create({
+    data: {
+      organizationId: otherOrgLocation.organizationId,
+      locationId: otherOrgLocation.id,
+      customerId: otherOrgCustomerId,
+      cartId: otherOrgCart.id,
+      createdById: otherOrgStaffUserId,
+      type: 'daily',
+      status: 'pending',
+      startDate: new Date('2027-03-01T00:00:00.000Z'),
+      endDate: new Date('2027-03-03T00:00:00.000Z'),
+      dailyRateSnapshot: 65,
+      totalAmount: 130,
+    },
+    select: { id: true },
+  });
+
+  const response = await fetch(`${baseUrl}/rentals/${otherOrgRental.id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  assert.equal(response.status, 404);
+  const body = (await response.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'NOT_FOUND');
+});
+
+test('GET /rentals — pageSize exceeding maximum returns 400', async () => {
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
+
+  const response = await fetch(`${baseUrl}/rentals?page=1&pageSize=200`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'BAD_REQUEST');
+});
+
+test('POST /rentals/:id/payments — missing required amount returns 400', async () => {
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
+
+  const activeRental = await prisma.rental.findFirstOrThrow({
+    where: { organizationId: primaryOrgId, status: 'active' },
+    select: { id: true },
+  });
+
+  const response = await fetch(`${baseUrl}/rentals/${activeRental.id}/payments`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    // amount is required but omitted
+    body: JSON.stringify({
+      method: 'cash',
+      status: 'paid',
+      paidAt: '2027-01-01T00:00:00.000Z',
+    }),
+  });
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'BAD_REQUEST');
+});
+
+test('POST /rentals/:id/payments — invalid method enum returns 400', async () => {
+  const token = await loginAsStaff(baseUrl, STAFF_EMAIL, PRIMARY_ORG_SLUG);
+
+  const activeRental = await prisma.rental.findFirstOrThrow({
+    where: { organizationId: primaryOrgId, status: 'active' },
+    select: { id: true },
+  });
+
+  const response = await fetch(`${baseUrl}/rentals/${activeRental.id}/payments`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      amount: 75,
+      method: 'bitcoin',
+      status: 'paid',
+      paidAt: '2027-01-01T00:00:00.000Z',
+    }),
+  });
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error: { code: string } };
+  assert.equal(body.error.code, 'BAD_REQUEST');
 });
